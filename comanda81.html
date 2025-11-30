@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Las Brasas POS v8.1 – Enterprise</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#d32f2f" />
+
+  <!-- Manifest para PWA -->
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Librería QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Firebase v8 (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <style>
+    :root {
+      --primary: #d32f2f;
+      --primary-dark: #b71c1c;
+      --accent: #ffc107;
+      --bg: #f4f6f9;
+      --dark-bg: #121212;
+      --dark-card: #1e1e1e;
+      --text-main: #222;
+      --text-soft: #666;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    .hidden { display: none !important; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 12px 16px 40px; }
+
+    .app-shell {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 2px 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+    .brand-title {
+      font-size: 0.75rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+    .brand-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 0 6px rgba(211,47,47,0.25);
+    }
+    .brand-main span {
+      font-weight: 700;
+    }
+    .badge-cloud {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(76,175,80,0.1);
+      color: #2e7d32;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    select, input[type="text"], input[type="number"], textarea {
+      padding: 7px 8px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-size: 0.85rem;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+    }
+    .btn-ghost {
+      background: #fff;
+      border: 1px solid #ddd;
+      color: var(--text-main);
+    }
+    .btn-danger {
+      background: #c62828;
+      color: #fff;
+    }
+    .btn-success {
+      background: #2e7d32;
+      color: #fff;
+    }
+    .btn-warning {
+      background: var(--accent);
+      color: #333;
+    }
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 0.78rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .tab {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: none;
+      background: #f1f1f1;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--text-soft);
+    }
+    .tab.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .view {
+      margin-top: 10px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+    .grid-mesas {
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    }
+    .grid-menu {
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.03);
+    }
+
+    .mesa {
+      height: 90px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-weight: 700;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .mesa span.num {
+      font-size: 1.4rem;
+    }
+    .mesa span.state {
+      font-size: 0.75rem;
+    }
+    .mesa.libre { background: #4caf50; }
+    .mesa.ocupada { background: #d32f2f; }
+    .mesa.cuenta { background: #ff9800; }
+    .mesa:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.16);
+    }
+    .mesa-qr-icon {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      font-size: 1rem;
+    }
+
+    .product-card {
+      position: relative;
+      cursor: pointer;
+      border-left: 4px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .product-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .product-price {
+      font-size: 0.85rem;
+      color: var(--primary);
+    }
+    .product-meta {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge-stock-low {
+      font-size: 0.7rem;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: #fff3cd;
+      color: #856404;
+    }
+    .badge-agotado {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #ffebee;
+      color: #c62828;
+      font-weight: 700;
+    }
+
+    .cart-panel {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 6px;
+      border-bottom: 1px dashed #eee;
+      padding-bottom: 4px;
+      font-size: 0.82rem;
+    }
+    .cart-item-mods {
+      font-size: 0.7rem;
+      color: var(--text-soft);
+    }
+
+    .kds-ticket {
+      border-left: 4px solid #bbb;
+      margin-bottom: 6px;
+      font-size: 0.82rem;
+    }
+    .kds-ticket.pendiente { border-color: #ff9800; }
+    .kds-ticket.en_proceso { border-color: #d32f2f; }
+    .kds-ticket.listo { border-color: #2e7d32; }
+
+    .timer-badge {
+      font-family: monospace;
+      font-size: 0.8rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #f1f1f1;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      width: 95%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .view-two-cols {
+      display: grid;
+      grid-template-columns: 2fr 1.3fr;
+      gap: 10px;
+    }
+    @media (max-width: 820px) {
+      .view-two-cols {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .pill-mode {
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #f1f1f1;
+      margin-right: 4px;
+    }
+
+    .text-small { font-size: 0.8rem; color: var(--text-soft); }
+
+  </style>
+</head>
+<body>
+  <audio id="dingSound" src="ding.mp3" preload="auto"></audio>
+
+  <!-- Modal: QR -->
+  <div id="qrModal" class="modal" onclick="closeQRModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3>📱 Escanea esta mesa <span id="qrMesaNum"></span></h3>
+      <div id="qrcode" style="margin:10px auto; display:flex; justify-content:center;"></div>
+      <p class="text-small">Comparte este código para que el cliente pida desde su celular.</p>
+      <button class="btn btn-ghost" onclick="closeQRModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Modificadores -->
+  <div id="modModal" class="modal" onclick="closeModModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3 id="modProdName">Personalizar producto</h3>
+      <p class="text-small" style="margin-top:4px;">Selecciona modificadores o escribe instrucciones especiales para cocina.</p>
+      <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">
+        <label><input type="checkbox" class="mod-check" value="Sin cebolla" /> Sin cebolla</label>
+        <label><input type="checkbox" class="mod-check" value="Con todo" /> Con todo</label>
+        <label><input type="checkbox" class="mod-check" value="Salsa aparte" /> Salsa aparte</label>
+        <label><input type="checkbox" class="mod-check" value="Bien cocido" /> Bien cocido</label>
+        <label><input type="checkbox" class="mod-check" value="Poco picante" /> Poco picante</label>
+      </div>
+      <textarea id="modNotas" rows="3" placeholder="Nota adicional para cocina (opcional)" style="width:100%; margin-top:8px;"></textarea>
+      <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn btn-ghost btn-small" onclick="closeModModal()">Cancelar</button>
+        <button class="btn btn-primary btn-small" onclick="confirmarModificadores()">Agregar al carrito</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: PIN -->
+  <div id="pinModal" class="modal" onclick="closePinModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3>🔒 Acceso protegido</h3>
+      <p class="text-small" style="margin-top:4px;">Ingresa el PIN para acceder a este módulo.</p>
+      <input type="password" id="pinInput" maxlength="4" placeholder="PIN (4 dígitos)" style="width:100%; margin-top:8px;" />
+      <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn btn-ghost btn-small" onclick="closePinModal()">Cancelar</button>
+        <button class="btn btn-primary btn-small" onclick="validarPIN()">Entrar</button>
+      </div>
+      <p class="text-small" style="margin-top:8px;">PIN por defecto: <strong>1234</strong> (configurable en Firestore).</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="app-shell">
+      <header>
+        <div class="brand">
+          <span class="brand-title">Las Brasas POS</span>
+          <div class="brand-main">
+            <span class="dot"></span>
+            <span>v8.1 Enterprise</span>
+          </div>
+          <span class="text-small">Piso · Cocina · Caja · Inventario · QR · Corte Z</span>
+        </div>
+        <div class="control-row">
+          <span class="badge-cloud">● Nube Activa · Firebase</span>
+          <button class="btn btn-ghost btn-small" onclick="actualizarMenuCompleto()">🔄 Actualizar Menú</button>
+          <select id="rolSelect" onchange="onRolChange(this.value)">
+            <option value="mesero">Rol: Mesero</option>
+            <option value="cocina">Rol: Cocina</option>
+            <option value="caja">Rol: Caja</option>
+            <option value="corte">Rol: Corte</option>
+            <option value="admin">Rol: Admin</option>
+            <option value="cliente">Rol: Cliente (Simulado)</option>
+          </select>
+        </div>
+      </header>
+
+      <div class="tabs" id="navTabs">
+        <button class="tab active" data-tab="mesas" onclick="verTab('mesas')">📍 Mesas</button>
+        <button class="tab" data-tab="comanda" onclick="verTab('comanda')">📝 Comanda</button>
+        <button class="tab" data-tab="cocina" onclick="verTab('cocina')">🔥 Cocina</button>
+        <button class="tab" data-tab="caja" onclick="verTab('caja')">💰 Caja</button>
+        <button class="tab" data-tab="corte" onclick="verTab('corte')">📊 Corte Z</button>
+        <button class="tab" data-tab="admin" onclick="verTab('admin')">⚙️ Menú</button>
+      </div>
+
+      <!-- VISTA MESAS -->
+      <section id="view-mesas" class="view">
+        <div class="grid grid-mesas" id="gridMesas">
+          <p class="text-small" style="grid-column:1/-1; text-align:center;">Cargando mesas desde la nube…</p>
+        </div>
+      </section>
+
+      <!-- VISTA COMANDA -->
+      <section id="view-comanda" class="view hidden">
+        <div class="view-two-cols">
+          <div>
+            <div class="card">
+              <h3>Menú</h3>
+              <input type="text" id="menuSearch" placeholder="🔍 Buscar taco, bebida…" oninput="filtrarMenu()" style="width:100%; margin-top:6px; margin-bottom:8px;" />
+              <div class="grid grid-menu" id="gridMenu"></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                <span>
+                  <span class="pill-mode">Tipo de orden</span>
+                </span>
+                <span class="text-small">Mesa actual: <strong>#<span id="mesaTitle">--</span></strong></span>
+              </h3>
+              <div style="margin-top:6px; font-size:0.8rem;">
+                <label><input type="radio" name="tipoOrden" value="mesa" checked onchange="onTipoOrdenChange()" /> 🍽️ Mesa</label><br/>
+                <label><input type="radio" name="tipoOrden" value="llevar" onchange="onTipoOrdenChange()" /> 🛍️ Para Llevar</label><br/>
+                <label><input type="radio" name="tipoOrden" value="domicilio" onchange="onTipoOrdenChange()" /> 🛵 Domicilio</label>
+                <input id="inputNombreLlevar" placeholder="Nombre cliente" class="hidden" style="width:100%; margin-top:4px;" />
+                <input id="inputNombreDom" placeholder="Nombre cliente (domicilio)" class="hidden" style="width:100%; margin-top:4px;" />
+                <textarea id="inputDireccionDom" rows="2" placeholder="Dirección completa" class="hidden" style="width:100%; margin-top:4px;"></textarea>
+              </div>
+
+              <div class="cart-panel" style="margin-top:8px;">
+                <div id="cartItems">
+                  <p class="text-small" style="text-align:center;">Selecciona productos del menú para comenzar.</p>
+                </div>
+                <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+                  <span class="text-small">Total:</span>
+                  <span id="cartTotal" style="font-weight:700; color:var(--primary); font-size:1rem;">$0.00</span>
+                </div>
+                <button class="btn btn-primary" style="margin-top:6px; width:100%;" onclick="enviarPedido()">✅ Enviar pedido a cocina</button>
+                <button class="btn btn-ghost btn-small" style="margin-top:4px; width:100%;" onclick="agregarProductoManual()">➕ Producto manual (extra / propina)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISTA COCINA -->
+      <section id="view-cocina" class="view hidden">
+        <div id="cocinaList" class="card">
+          <p class="text-small" style="text-align:center;">Esperando órdenes…</p>
+        </div>
+      </section>
+
+      <!-- VISTA CAJA -->
+      <section id="view-caja" class="view hidden">
+        <div id="cajaList" class="card">
+          <p class="text-small" style="text-align:center;">Cargando información de caja…</p>
+        </div>
+      </section>
+
+      <!-- VISTA CORTE -->
+      <section id="view-corte" class="view hidden">
+        <div class="card" id="cortePanel">
+          <h3>📊 Corte de Caja (Reporte Z – Hoy)</h3>
+          <p class="text-small" style="margin-top:4px;">Resumen de ventas del día calculado desde las comandas cerradas.</p>
+          <button class="btn btn-ghost btn-small" style="margin-top:6px;" onclick="calcularCorteHoy()">🔄 Recalcular corte</button>
+          <div id="corteContenido" style="margin-top:8px; font-size:0.85rem;">
+            <p class="text-small">Haz clic en “Recalcular corte” para ver el resumen.</p>
+          </div>
+          <button class="btn btn-primary btn-small" style="margin-top:6px;" onclick="imprimirCorte()">🖨️ Imprimir Corte Z</button>
+        </div>
+      </section>
+
+      <!-- VISTA ADMIN -->
+      <section id="view-admin" class="view hidden">
+        <div class="card">
+          <h3>⚙️ Gestión de Menú</h3>
+          <p class="text-small">Agrega o ajusta productos desde aquí. El stock se controla por producto.</p>
+          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+            <input id="newProdName" placeholder="Nombre" />
+            <input id="newProdPrice" type="number" placeholder="Precio" min="0" />
+            <input id="newProdStock" type="number" placeholder="Stock" min="0" />
+            <input id="newProdCat" placeholder="Categoría (Tacos, Bebidas…)" />
+            <button class="btn btn-primary btn-small" onclick="addProducto()">Agregar</button>
+          </div>
+          <div id="adminList" style="margin-top:8px; max-height:260px; overflow-y:auto; font-size:0.8rem;"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // ==========================
+    // 🔧 CONFIG FIREBASE
+    // ==========================
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_AUTH_DOMAIN",
+      projectId: "TU_PROJECT_ID",
+      storageBucket: "TU_BUCKET",
+      messagingSenderId: "TU_SENDER",
+      appId: "TU_APP_ID"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+
+    // ==========
+    // ESTADO
+    // ==========
+    let currentRol = "mesero";
+    let currentMesa = null;
+    let carrito = [];
+    let menuCache = [];
+    let audioEnabled = false;
+    let firstComandasSnapshot = true;
+    let pendingProtectedTab = null;
+    const PIN_DEFAULT = "1234"; // se puede sacar de Firestore si quieres
+    let lastValidRol = "mesero";
+
+    document.addEventListener("click", () => {
+      audioEnabled = true;
+    }, { once: true });
+
+    // PWA: registrar SW si existe archivo sw.js
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // ==========
+    // UI TABS
+    // ==========
+    function verTab(tabId) {
+      document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+      document.getElementById(`view-${tabId}`).classList.remove("hidden");
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      const btn = document.querySelector(`.tab[data-tab="${tabId}"]`);
+      if (btn) btn.classList.add("active");
+    }
+
+    // ==========
+    // ROL + PIN
+    // ==========
+    function onRolChange(nuevoRol) {
+      if (["caja", "corte", "admin"].includes(nuevoRol)) {
+        // pedir PIN
+        pendingProtectedTab = nuevoRol;
+        document.getElementById("pinModal").style.display = "flex";
+        document.getElementById("pinInput").value = "";
+        document.getElementById("rolSelect").value = lastValidRol;
+      } else {
+        currentRol = nuevoRol;
+        lastValidRol = nuevoRol;
+        // cambiar vista sugerida
+        if (nuevoRol === "mesero") verTab("mesas");
+        if (nuevoRol === "cocina") verTab("cocina");
+        if (nuevoRol === "cliente") {
+          // cliente simulado: elegir mesa
+          const m = prompt("Número de mesa para simular cliente:");
+          if (m) {
+            currentMesa = parseInt(m);
+            document.getElementById("navTabs").style.display = "none";
+            abrirMesa(currentMesa);
+            verTab("comanda");
+          }
+        }
+      }
+    }
+
+    function validarPIN() {
+      const pin = document.getElementById("pinInput").value.trim();
+      if (pin === PIN_DEFAULT || pin === "1234") {
+        currentRol = pendingProtectedTab;
+        lastValidRol = currentRol;
+        document.getElementById("rolSelect").value = currentRol;
+        if (currentRol === "caja") verTab("caja");
+        if (currentRol === "corte") verTab("corte");
+        if (currentRol === "admin") verTab("admin");
+        closePinModal();
+      } else {
+        alert("PIN incorrecto");
+      }
+    }
+
+    function closePinModal() {
+      document.getElementById("pinModal").style.display = "none";
+      pendingProtectedTab = null;
+    }
+
+    // ==========
+    // MESAS
+    // ==========
+    db.collection("mesas").orderBy("id").onSnapshot((snapshot) => {
+      const cont = document.getElementById("gridMesas");
+      if (snapshot.empty) {
+        cont.innerHTML = "<p class='text-small' style='grid-column:1/-1; text-align:center;'>No hay mesas configuradas. Crea algunas en Firestore (colección 'mesas').</p>";
+        return;
+      }
+      const mesas = [];
+      cont.innerHTML = "";
+      snapshot.forEach(doc => {
+        const m = doc.data();
+        mesas.push(m);
+        const div = document.createElement("div");
+        div.className = `mesa ${m.estado || 'libre'}`;
+        div.innerHTML = `
+          <span class="num">${m.id}</span>
+          <span class="state">${(m.estado || 'libre').toUpperCase()}</span>
+          <span class="mesa-qr-icon">📱</span>
+        `;
+        div.onclick = (ev) => {
+          // si se hace clic tratando de simular QR, podrías diferenciar:
+          if (!currentRol || currentRol === "cliente") {
+            currentMesa = m.id;
+            abrirMesa(m.id);
+            verTab("comanda");
+          } else {
+            // para mesero, permitir abrir comanda y mostrar QR en menú contextual
+            const showQRFirst = ev.shiftKey; // truco: shift+click para QR directo
+            if (showQRFirst) {
+              showQR(m.id);
+            } else {
+              currentMesa = m.id;
+              abrirMesa(m.id);
+              verTab("comanda");
+            }
+          }
+        };
+        cont.appendChild(div);
+      });
+      // guardar snapshot de mesas en localStorage (offline-friendly)
+      localStorage.setItem("brasas_mesas_cache", JSON.stringify(mesas));
+    }, (error) => {
+      // si Firestore falla, intentar usar cache local
+      const cache = localStorage.getItem("brasas_mesas_cache");
+      if (cache) {
+        const mesas = JSON.parse(cache);
+        const cont = document.getElementById("gridMesas");
+        cont.innerHTML = "";
+        mesas.forEach(m => {
+          const div = document.createElement("div");
+          div.className = `mesa ${m.estado || 'libre'}`;
+          div.innerHTML = `<span class="num">${m.id}</span><span class="state">${(m.estado || 'libre').toUpperCase()}</span>`;
+          div.onclick = () => { currentMesa = m.id; abrirMesa(m.id); verTab("comanda"); };
+          cont.appendChild(div);
+        });
+      }
+    });
+
+    function showQR(id) {
+      document.getElementById("qrModal").style.display = "flex";
+      document.getElementById("qrMesaNum").innerText = id;
+      const qrDiv = document.getElementById("qrcode");
+      qrDiv.innerHTML = "";
+      const url = window.location.origin + window.location.pathname + `?mesa=${id}&mode=cliente`;
+      new QRCode(qrDiv, { text: url, width: 200, height: 200 });
+    }
+    function closeQRModal() {
+      document.getElementById("qrModal").style.display = "none";
+    }
+
+    function abrirMesa(id) {
+      currentMesa = id;
+      document.getElementById("mesaTitle").innerText = id || "--";
+      carrito = [];
+      renderCarrito();
+      onTipoOrdenChange();
+    }
+
+    // ==========
+    // MENÚ
+    // ==========
+    db.collection("menu").orderBy("nombre").onSnapshot((snapshot) => {
+      menuCache = [];
+      snapshot.forEach(doc => {
+        menuCache.push({ id: doc.id, ...doc.data() });
+      });
+      localStorage.setItem("brasas_menu_cache", JSON.stringify(menuCache));
+      renderMenuGrid(menuCache);
+    }, (error) => {
+      const cache = localStorage.getItem("brasas_menu_cache");
+      if (cache) {
+        menuCache = JSON.parse(cache);
+        renderMenuGrid(menuCache);
+      }
+    });
+
+    function renderMenuGrid(items) {
+      const el = document.getElementById("gridMenu");
+      el.innerHTML = "";
+      if (!items.length) {
+        el.innerHTML = "<p class='text-small' style='grid-column:1/-1; text-align:center;'>Menú vacío. Usa “Actualizar Menú” o agrega productos desde Admin.</p>";
+        return;
+      }
+      items.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "card product-card";
+        let borderCol = "#ddd";
+        if (p.categoria === "Tacos") borderCol = "#d32f2f";
+        if (p.categoria === "Bebidas") borderCol = "#1976d2";
+        if (p.categoria === "Especiales") borderCol = "#fbc02d";
+        div.style.borderLeftColor = borderCol;
+
+        const stock = typeof p.stock === "number" ? p.stock : null;
+        const agotado = stock !== null && stock <= 0;
+
+        div.innerHTML = `
+          <div class="product-name">${p.nombre}</div>
+          <div class="product-price">$${Number(p.precio).toFixed(2)}</div>
+          <div class="product-meta">
+            <span>${p.categoria || ""}</span>
+            <span>
+              ${stock !== null ? `<span class="text-small">Stock: ${stock}</span>` : ""}
+              ${stock !== null && stock <= 3 && stock > 0 ? `<span class="badge-stock-low">Poco</span>` : ""}
+              ${agotado ? `<span class="badge-agotado">AGOTADO</span>` : ""}
+            </span>
+          </div>
+        `;
+        if (!agotado) {
+          div.onclick = () => abrirModificadores(p);
+        } else {
+          div.style.opacity = 0.5;
+          div.style.cursor = "not-allowed";
+        }
+
+        el.appendChild(div);
+      });
+    }
+
+    function filtrarMenu() {
+      const term = document.getElementById("menuSearch").value.toLowerCase();
+      const filtered = menuCache.filter(p =>
+        p.nombre.toLowerCase().includes(term) ||
+        (p.categoria && p.categoria.toLowerCase().includes(term))
+      );
+      renderMenuGrid(filtered);
+    }
+
+    // ==========
+    // MODIFICADORES
+    // ==========
+    let prodEnMod = null;
+    function abrirModificadores(prod) {
+      prodEnMod = prod;
+      document.getElementById("modProdName").innerText = prod.nombre;
+      document.querySelectorAll(".mod-check").forEach(c => c.checked = false);
+      document.getElementById("modNotas").value = "";
+      document.getElementById("modModal").style.display = "flex";
+    }
+    function closeModModal() {
+      document.getElementById("modModal").style.display = "none";
+      prodEnMod = null;
+    }
+    function confirmarModificadores() {
+      if (!prodEnMod) return;
+      const checks = Array.from(document.querySelectorAll(".mod-check"))
+        .filter(c => c.checked)
+        .map(c => c.value);
+      const notas = document.getElementById("modNotas").value.trim();
+      const mods = [];
+      if (checks.length) mods.push(...checks);
+      if (notas) mods.push(`Nota: ${notas}`);
+      agregarAlCarrito(prodEnMod, mods);
+      closeModModal();
+    }
+
+    function agregarAlCarrito(prod, mods = []) {
+      carrito.push({
+        idProd: prod.id,
+        nombre: prod.nombre,
+        precio: Number(prod.precio),
+        mods,
+        manual: false
+      });
+      renderCarrito();
+    }
+
+    function agregarProductoManual() {
+      const nombre = prompt("Nombre del producto manual (ej. Propina, Extra):");
+      if (!nombre) return;
+      const precioStr = prompt("Precio del producto (ej. 20):");
+      const precio = Number(precioStr || "0");
+      if (isNaN(precio)) return alert("Precio inválido");
+      carrito.push({
+        idProd: null,
+        nombre,
+        precio,
+        mods: [],
+        manual: true
+      });
+      renderCarrito();
+    }
+
+    function renderCarrito() {
+      const cont = document.getElementById("cartItems");
+      cont.innerHTML = "";
+      if (!carrito.length) {
+        cont.innerHTML = "<p class='text-small' style='text-align:center;'>Carrito vacío.</p>";
+        document.getElementById("cartTotal").innerText = "$0.00";
+        return;
+      }
+      let total = 0;
+      carrito.forEach((item, idx) => {
+        total += item.precio;
+        const div = document.createElement("div");
+        div.className = "cart-item";
+        div.innerHTML = `
+          <div>
+            <div>${item.nombre}</div>
+            ${item.mods && item.mods.length ? `<div class="cart-item-mods">${item.mods.join(" · ")}</div>` : ""}
+          </div>
+          <div>
+            <span>$${item.precio.toFixed(2)}</span>
+            <button class="btn btn-ghost btn-small" style="margin-left:6px;" onclick="removeCartItem(${idx})">✕</button>
+          </div>
+        `;
+        cont.appendChild(div);
+      });
+      document.getElementById("cartTotal").innerText = "$" + total.toFixed(2);
+    }
+
+    function removeCartItem(idx) {
+      carrito.splice(idx, 1);
+      renderCarrito();
+    }
+
+    // ==========
+    // TIPO DE ORDEN
+    // ==========
+    function onTipoOrdenChange() {
+      const tipo = document.querySelector('input[name="tipoOrden"]:checked')?.value || "mesa";
+      const nL = document.getElementById("inputNombreLlevar");
+      const nD = document.getElementById("inputNombreDom");
+      const dD = document.getElementById("inputDireccionDom");
+      nL.classList.add("hidden");
+      nD.classList.add("hidden");
+      dD.classList.add("hidden");
+      if (tipo === "llevar") {
+        nL.classList.remove("hidden");
+      }
+      if (tipo === "domicilio") {
+        nD.classList.remove("hidden");
+        dD.classList.remove("hidden");
+      }
+    }
+
+    // ==========
+    // COMANDAS (COCINA + CAJA + DING)
+    // ==========
+    db.collection("comandas")
+      .where("estado", "!=", "cerrado")
+      .onSnapshot((snapshot) => {
+        const comandas = [];
+        snapshot.forEach(doc => comandas.push({ id: doc.id, ...doc.data() }));
+        comandas.sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+        renderCocina(comandas);
+        renderCaja(comandas);
+
+        if (!firstComandasSnapshot && audioEnabled) {
+          snapshot.docChanges().forEach(change => {
+            if (change.type === "added") {
+              const data = change.doc.data();
+              if (data.estado === "pendiente") {
+                const audio = document.getElementById("dingSound");
+                if (audio) audio.play().catch(()=>{});
+              }
+            }
+          });
+        }
+        firstComandasSnapshot = false;
+
+        // guardar cache para lectura offline parcial
+        localStorage.setItem("brasas_comandas_cache", JSON.stringify(comandas));
+      });
+
+    function renderCocina(comandas) {
+      const el = document.getElementById("cocinaList");
+      el.innerHTML = "";
+      if (!comandas.length) {
+        el.innerHTML = "<p class='text-small' style='text-align:center;'>Todo limpio, Chef 👨‍🍳</p>";
+        return;
+      }
+      comandas.forEach(c => {
+        const card = document.createElement("div");
+        card.className = `card kds-ticket ${c.estado}`;
+        let encabezado = "";
+        if (c.tipo === "llevar") {
+          encabezado = `🛍️ Para Llevar - ${c.clienteNombre || ""}`;
+        } else if (c.tipo === "domicilio") {
+          encabezado = `🛵 Domicilio - ${c.clienteNombre || ""}`;
+        } else {
+          encabezado = `🍽️ Mesa ${c.mesaId ?? "-"}`;
+        }
+        let tiempo = "Ahora";
+        if (c.timestamp && c.timestamp.toDate) {
+          const diffMin = Math.floor((Date.now() - c.timestamp.toDate()) / 1000 / 60);
+          tiempo = diffMin + " min";
+        }
+        let btn = "";
+        if (c.estado === "pendiente") {
+          btn = `<button class="btn btn-primary btn-small" onclick="cambiarEstado('${c.id}','en_proceso')">🔥 A fuego</button>`;
+        } else if (c.estado === "en_proceso") {
+          btn = `<button class="btn btn-success btn-small" onclick="cambiarEstado('${c.id}','listo')">✅ Marcar listo</button>`;
+        } else if (c.estado === "listo") {
+          btn = `<button class="btn btn-ghost btn-small" onclick="cambiarEstado('${c.id}','despachado')">🍽️ Despachado</button>`;
+        }
+
+        const itemsHtml = (c.items || []).map(i => `
+          <li>${i.nombre}${i.mods && i.mods.length ? ` <span style="color:#888;">(${i.mods.join(" · ")})</span>` : ""}</li>
+        `).join("");
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div><strong>${encabezado}</strong></div>
+            <span class="timer-badge">${tiempo}</span>
+          </div>
+          <div class="text-small">Estado: <strong>${(c.estado || "").toUpperCase()}</strong></div>
+          ${c.tipo === "domicilio" && c.clienteDireccion ? `<div class="text-small">📍 ${c.clienteDireccion}</div>` : ""}
+          <hr style="margin:6px 0; border:0; border-top:1px dashed #ddd;" />
+          <ul style="padding-left:16px; margin-bottom:6px;">${itemsHtml}</ul>
+          ${btn}
+        `;
+        el.appendChild(card);
+      });
+    }
+
+    function cambiarEstado(id, estado) {
+      db.collection("comandas").doc(id).update({ estado });
+    }
+
+    // ==========
+    // ENVIAR PEDIDO
+    // ==========
+    async function enviarPedido() {
+      if (!carrito.length) return alert("Carrito vacío.");
+      const tipo = document.querySelector('input[name="tipoOrden"]:checked')?.value || "mesa";
+      let mesaId = currentMesa;
+      let clienteNombre = null;
+      let clienteDireccion = null;
+
+      if (tipo === "mesa") {
+        if (!mesaId) return alert("Selecciona una mesa primero.");
+      } else if (tipo === "llevar") {
+        mesaId = null;
+        clienteNombre = document.getElementById("inputNombreLlevar").value.trim();
+        if (!clienteNombre) return alert("Escribe el nombre del cliente.");
+      } else if (tipo === "domicilio") {
+        mesaId = null;
+        clienteNombre = document.getElementById("inputNombreDom").value.trim();
+        clienteDireccion = document.getElementById("inputDireccionDom").value.trim();
+        if (!clienteNombre || !clienteDireccion) {
+          return alert("Nombre y dirección son obligatorios para domicilio.");
+        }
+      }
+
+      // preparar items con bandera de pagado = false
+      const items = carrito.map(i => ({
+        nombre: i.nombre,
+        precio: i.precio,
+        mods: i.mods || [],
+        manual: !!i.manual,
+        pagado: false
+      }));
+
+      try {
+        if (tipo === "mesa") {
+          // buscar comanda pendiente existente
+          const snap = await db.collection("comandas").where("mesaId","==", mesaId).get();
+          let pendienteId = null;
+          let hayCocina = false;
+          snap.forEach(doc => {
+            const d = doc.data();
+            if (d.tipo !== "mesa") return;
+            if (d.estado === "pendiente") pendienteId = doc.id;
+            if (["en_proceso","listo","despachado"].includes(d.estado)) hayCocina = true;
+          });
+          if (!pendienteId && hayCocina) {
+            alert("La orden de esta mesa ya está en cocina. No se puede modificar.");
+            return;
+          }
+          if (pendienteId) {
+            const docRef = db.collection("comandas").doc(pendienteId);
+            const docSnap = await docRef.get();
+            const data = docSnap.data();
+            const nuevosItems = (data.items || []).concat(items);
+            await docRef.update({
+              items: nuevosItems,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } else {
+            await db.collection("comandas").add({
+              mesaId,
+              tipo: "mesa",
+              clienteNombre: null,
+              clienteDireccion: null,
+              items,
+              estado: "pendiente",
+              despachoEstado: null,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            // marcar mesa ocupada
+            const mesaRef = await db.collection("mesas").where("id","==", mesaId).get();
+            if (!mesaRef.empty) mesaRef.docs[0].ref.update({ estado: "ocupada" });
+          }
+        } else {
+          // para llevar / domicilio
+          await db.collection("comandas").add({
+            mesaId: null,
+            tipo,
+            clienteNombre,
+            clienteDireccion,
+            items,
+            estado: "pendiente",
+            despachoEstado: "pendiente",
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        // descuento de stock (solo productos no manual)
+        const batch = db.batch();
+        carrito.forEach(item => {
+          if (!item.manual && item.idProd) {
+            const ref = db.collection("menu").doc(item.idProd);
+            batch.update(ref, {
+              stock: firebase.firestore.FieldValue.increment(-1)
+            });
+          }
+        });
+        await batch.commit().catch(()=>{});
+
+        alert("Pedido enviado a la nube.");
+        carrito = [];
+        renderCarrito();
+        verTab("mesas");
+      } catch (e) {
+        console.error(e);
+        alert("Error al enviar pedido: " + e.message);
+      }
+    }
+
+    // ==========
+    // CAJA
+    // ==========
+    function renderCaja(comandas) {
+      const el = document.getElementById("cajaList");
+      el.innerHTML = "";
+      if (!comandas.length) {
+        el.innerHTML = "<p class='text-small' style='text-align:center;'>Sin órdenes activas.</p>";
+        return;
+      }
+      comandas.forEach(c => {
+        const card = document.createElement("div");
+        card.className = "card";
+        const total = (c.items || []).reduce((sum, i) => sum + Number(i.precio || 0), 0);
+        let encabezado = "";
+        if (c.tipo === "llevar") {
+          encabezado = `🛍️ Para Llevar - ${c.clienteNombre || ""}`;
+        } else if (c.tipo === "domicilio") {
+          encabezado = `🛵 Domicilio - ${c.clienteNombre || ""}`;
+        } else {
+          encabezado = `🍽️ Mesa ${c.mesaId ?? "-"}`;
+        }
+        const pagados = (c.items || []).filter(i => i.pagado).length;
+        const pendientes = (c.items || []).length - pagados;
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div><strong>${encabezado}</strong></div>
+            <div class="text-small">Estado cocina: ${(c.estado || "").toUpperCase()}</div>
+          </div>
+          <div class="text-small">Items: ${c.items?.length || 0} · Pendientes por cobrar: ${pendientes}</div>
+          <div style="margin-top:4px;"><strong>Total: $${total.toFixed(2)}</strong></div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+            <button class="btn btn-warning btn-small" onclick="imprimirTicket('${c.id}')">🖨️ Ticket</button>
+            <button class="btn btn-success btn-small" onclick="cobroCompleto('${c.id}')">💰 Cobrar todo</button>
+          </div>
+        `;
+        el.appendChild(card);
+      });
+    }
+
+    function cobroCompleto(id) {
+      db.collection("comandas").doc(id).get().then(doc => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        // marcar todos los items como pagados
+        const items = (data.items || []).map(i => ({ ...i, pagado: true }));
+        db.collection("comandas").doc(id).update({ items, estado: "cerrado" });
+        if (data.mesaId) {
+          db.collection("mesas").where("id","==", data.mesaId).get().then(q => {
+            if (!q.empty) q.docs[0].ref.update({ estado: "libre" });
+          });
+        }
+      });
+    }
+
+    function imprimirTicket(id) {
+      db.collection("comandas").doc(id).get().then(doc => {
+        if (!doc.exists) return alert("Comanda no encontrada");
+        const c = doc.data();
+        const total = (c.items || []).reduce((sum, i) => sum + Number(i.precio || 0), 0);
+        const fecha = c.timestamp?.toDate ? c.timestamp.toDate() : new Date();
+        const folio = id.slice(-6);
+
+        let encabezado = "";
+        if (c.tipo === "llevar") {
+          encabezado = `PARA LLEVAR - ${c.clienteNombre || ""}`;
+        } else if (c.tipo === "domicilio") {
+          encabezado = `DOMICILIO - ${c.clienteNombre || ""}`;
+        } else {
+          encabezado = `MESA ${c.mesaId ?? "-"}`;
+        }
+
+        const w = window.open("", "PRINT", "height=600,width=400");
+        w.document.write(`
+          <html>
+          <head>
+            <title>Ticket ${folio}</title>
+            <style>
+              body { font-family: monospace; font-size: 12px; }
+              .center { text-align:center; }
+              hr { border:0; border-top:1px dashed #000; }
+              table { width:100%; }
+              td { font-size:12px; }
+              .tot { font-size:14px; font-weight:bold; }
+            </style>
+          </head>
+          <body>
+            <div class="center">
+              <h3>LAS BRASAS</h3>
+              <div>${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}</div>
+              <div>Folio: ${folio}</div>
+              <div>${encabezado}</div>
+            </div>
+            <hr />
+            <table>
+              ${(c.items || []).map(i => `
+                <tr>
+                  <td>${i.nombre}</td>
+                  <td style="text-align:right;">$${Number(i.precio || 0).toFixed(2)}</td>
+                </tr>
+              `).join("")}
+            </table>
+            <hr />
+            <div class="tot">TOTAL: $${total.toFixed(2)}</div>
+            <div class="center">¡Gracias por su compra!</div>
+          </body>
+          </html>
+        `);
+        w.document.close();
+        w.focus();
+        w.print();
+        w.close();
+      });
+    }
+
+    // ==========
+    // CORTE Z (HOY)
+    // ==========
+    async function calcularCorteHoy() {
+      const cont = document.getElementById("corteContenido");
+      cont.innerHTML = "<p class='text-small'>Calculando…</p>";
+      try {
+        const hoy = new Date();
+        const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0,0,0);
+        const fin = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23,59,59);
+        const snap = await db.collection("comandas")
+          .where("estado","==","cerrado")
+          .where("timestamp",">=",inicio)
+          .where("timestamp","<=",fin)
+          .get();
+
+        let total = 0;
+        let numTickets = 0;
+        const porCategoria = {};
+        const porProducto = {};
+
+        snap.forEach(doc => {
+          const c = doc.data();
+          numTickets++;
+          (c.items || []).forEach(i => {
+            const monto = Number(i.precio || 0);
+            total += monto;
+            // por producto
+            porProducto[i.nombre] = (porProducto[i.nombre] || 0) + monto;
+            // por categoría ~ heurística: buscar en menuCache
+            const menuItem = menuCache.find(p => p.nombre === i.nombre);
+            const cat = menuItem?.categoria || "Otros";
+            porCategoria[cat] = (porCategoria[cat] || 0) + monto;
+          });
+        });
+
+        const ticketProm = numTickets ? total / numTickets : 0;
+
+        let catHtml = "";
+        Object.keys(porCategoria).forEach(cat => {
+          catHtml += `<li>${cat}: $${porCategoria[cat].toFixed(2)}</li>`;
+        });
+
+        let prodHtml = "";
+        Object.keys(porProducto).forEach(n => {
+          prodHtml += `<li>${n}: $${porProducto[n].toFixed(2)}</li>`;
+        });
+
+        cont.innerHTML = `
+          <p><strong>Total del día:</strong> $${total.toFixed(2)}</p>
+          <p><strong>Tickets cerrados:</strong> ${numTickets}</p>
+          <p><strong>Ticket promedio:</strong> $${ticketProm.toFixed(2)}</p>
+          <hr style="margin:6px 0;" />
+          <p><strong>Ventas por categoría:</strong></p>
+          <ul style="padding-left:16px;">${catHtml || "<li>Sin datos</li>"}</ul>
+          <p style="margin-top:4px;"><strong>Ventas por producto:</strong></p>
+          <ul style="padding-left:16px;">${prodHtml || "<li>Sin datos</li>"}</ul>
+        `;
+      } catch (e) {
+        console.error(e);
+        cont.innerHTML = "<p class='text-small'>Error al calcular el corte: " + e.message + "</p>";
+      }
+    }
+
+    function imprimirCorte() {
+      const cont = document.getElementById("corteContenido").innerHTML;
+      const w = window.open("", "PRINT", "height=600,width=400");
+      w.document.write(`
+        <html>
+        <head>
+          <title>Corte Z</title>
+          <style>
+            body { font-family: monospace; font-size: 12px; }
+            h3 { text-align:center; }
+            hr { border:0; border-top:1px dashed #000; }
+          </style>
+        </head>
+        <body>
+          <h3>Corte de Caja – Las Brasas</h3>
+          <hr />
+          ${cont}
+        </body>
+        </html>
+      `);
+      w.document.close();
+      w.focus();
+      w.print();
+      w.close();
+    }
+
+    // ==========
+    // ADMIN MENÚ
+    // ==========
+    function addProducto() {
+      const nombre = document.getElementById("newProdName").value.trim();
+      const precio = Number(document.getElementById("newProdPrice").value || "0");
+      const stock = Number(document.getElementById("newProdStock").value || "0");
+      const cat = document.getElementById("newProdCat").value.trim() || "Otros";
+      if (!nombre || isNaN(precio)) return alert("Nombre y precio obligatorios.");
+      db.collection("menu").add({
+        nombre,
+        precio,
+        stock,
+        categoria: cat
+      }).then(() => {
+        document.getElementById("newProdName").value = "";
+        document.getElementById("newProdPrice").value = "";
+        document.getElementById("newProdStock").value = "";
+        document.getElementById("newProdCat").value = "";
+      });
+    }
+
+    // render en admin desde menuCache
+    function renderAdminList() {
+      const el = document.getElementById("adminList");
+      el.innerHTML = "";
+      menuCache.forEach(p => {
+        const div = document.createElement("div");
+        div.style.display = "flex";
+        div.style.justifyContent = "space-between";
+        div.style.alignItems = "center";
+        div.style.borderBottom = "1px dashed #eee";
+        div.style.padding = "2px 0";
+        div.innerHTML = `
+          <span>${p.nombre} (${p.categoria || "Otros"})</span>
+          <span class="text-small">Precio: $${Number(p.precio).toFixed(2)} · Stock: ${p.stock ?? "-"}</span>
+        `;
+        el.appendChild(div);
+      });
+    }
+
+    // Hook: cuando cambia menuCache (dentro de snapshot), llamar
+    const origRenderMenuGrid = renderMenuGrid;
+    renderMenuGrid = function(items) {
+      origRenderMenuGrid(items);
+      renderAdminList();
+    };
+
+    // ==========
+    // ACTUALIZAR MENÚ COMPLETO
+    // ==========
+    async function actualizarMenuCompleto() {
+      if (!confirm("⚠️ Esto sobrescribirá el menú actual con el menú base de Las Brasas incluyendo campo 'stock'. ¿Continuar?")) return;
+      const batch = db.batch();
+      const snap = await db.collection("menu").get();
+      snap.forEach(doc => batch.delete(doc.ref));
+
+      const nuevoMenu = [
+        { nombre: "Taco Al Carbón", precio: 40, categoria: "Tacos", stock: 100 },
+        { nombre: "Taco Bistec", precio: 50, categoria: "Tacos", stock: 100 },
+        { nombre: "Taco Cecina", precio: 50, categoria: "Tacos", stock: 100 },
+        { nombre: "Taco Longaniza", precio: 40, categoria: "Tacos", stock: 100 },
+        { nombre: "Taco Arrachera", precio: 60, categoria: "Tacos", stock: 100 },
+        { nombre: "Gringa Normal", precio: 30, categoria: "Gringas", stock: 50 },
+        { nombre: "Gringa Doble", precio: 55, categoria: "Gringas", stock: 50 },
+        { nombre: "Refresco", precio: 25, categoria: "Bebidas", stock: 200 },
+        { nombre: "Cerveza", precio: 40, categoria: "Bebidas", stock: 120 },
+        { nombre: "Agua 1 Lt", precio: 30, categoria: "Bebidas", stock: 150 }
+      ];
+      nuevoMenu.forEach(item => {
+        const ref = db.collection("menu").doc();
+        batch.set(ref, item);
+      });
+      await batch.commit();
+      alert("Menú actualizado con éxito.");
+    }
+
+    // ==========
+    // MODO CLIENTE POR QUERYSTRING
+    // ==========
+    window.onload = () => {
+      const params = new URLSearchParams(window.location.search);
+      const mesaParam = params.get("mesa");
+      const modeParam = params.get("mode");
+      if (mesaParam && modeParam === "cliente") {
+        // modo cliente simplificado
+        currentRol = "cliente";
+        currentMesa = parseInt(mesaParam);
+        document.getElementById("navTabs").style.display = "none";
+        abrirMesa(currentMesa);
+        verTab("comanda");
+        document.querySelector('input[name="tipoOrden"][value="mesa"]').checked = true;
+        onTipoOrdenChange();
+      }
+    };
+  </script>
+</body>
+</html>
