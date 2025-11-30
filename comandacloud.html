@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Las Brasas POS v6.0 - CLOUD ☁️</title>
+    <title>Las Brasas POS v6.2 - Menú Oficial</title>
     
+    <!-- Librería QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
+    <!-- FIREBASE (Compat Version - Funciona directo en HTML) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
@@ -35,6 +37,7 @@
         .btn-primary { background: var(--primary); }
         .btn-success { background: #2e7d32; }
         .btn-warning { background: #ff9800; color: #333; }
+        .btn-info { background: #17a2b8; }
         
         /* NAVEGACIÓN */
         .tabs { display: flex; gap: 5px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; }
@@ -54,16 +57,17 @@
 </head>
 <body>
 
+    <!-- INSTALADOR (Aparece si la BD está vacía) -->
     <div id="installer" class="modal">
         <div class="modal-content">
             <h1 style="font-size: 3em;">🚀</h1>
-            <h2>Iniciando Sistema Cloud</h2>
+            <h2>Conectado a Firebase</h2>
             <p>Se detectó una base de datos nueva.</p>
-            <p>Haz clic para crear las Mesas y el Menú inicial.</p>
             <button class="btn btn-primary" onclick="instalarBD()">🛠️ INSTALAR BASE DE DATOS</button>
         </div>
     </div>
 
+    <!-- MODAL QR -->
     <div id="qrModal" class="modal" onclick="this.style.display='none'">
         <div class="modal-content" onclick="event.stopPropagation()">
             <h3>Escanea Mesa <span id="qrMesaNum"></span></h3>
@@ -74,32 +78,40 @@
     </div>
 
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 10px;">
+        <!-- HEADER -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 10px; flex-wrap: wrap; gap: 10px;">
             <div>
                 <h2 style="color:var(--primary); margin:0;">🔥 Las Brasas</h2>
-                <small style="color:green; font-weight:bold;">● Conectado a la Nube</small>
+                <small style="color:green; font-weight:bold;">● Nube Activa</small>
             </div>
-            <select id="rolSelect" onchange="cambiarRol()" style="padding:8px; border-radius:5px; border:1px solid #ddd;">
-                <option value="mesero">Rol: Mesero</option>
-                <option value="cocina">Rol: Cocina</option>
-                <option value="cliente">Rol: Cliente (Simulado)</option>
-            </select>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-info" style="width: auto; padding: 8px; margin: 0; font-size: 0.8em;" onclick="actualizarMenuCompleto()">🔄 Actualizar Menú</button>
+                <select id="rolSelect" onchange="cambiarRol()" style="padding:8px; border-radius:5px; border:1px solid #ddd;">
+                    <option value="mesero">Rol: Mesero</option>
+                    <option value="cocina">Rol: Cocina</option>
+                    <option value="cliente">Rol: Cliente (Simulado)</option>
+                </select>
+            </div>
         </div>
 
+        <!-- TABS -->
         <div class="tabs" id="navTabs">
             <button class="tab active" onclick="verTab('mesas')">📍 Mesas</button>
             <button class="tab" onclick="verTab('comanda')">📝 Comanda</button>
             <button class="tab" onclick="verTab('cocina')">🔥 Cocina Live</button>
         </div>
 
+        <!-- VISTA MESAS -->
         <div id="view-mesas">
             <div class="grid" id="gridMesas">
                 <p style="text-align:center; width:100%;">Cargando mesas desde Firebase...</p>
             </div>
         </div>
 
+        <!-- VISTA COMANDA -->
         <div id="view-comanda" class="hidden">
             <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                <!-- Carrito -->
                 <div class="card" style="border: 2px solid var(--primary);">
                     <h3 style="display:flex; justify-content:space-between;">
                         Mesa <span id="mesaTitle">--</span>
@@ -111,13 +123,17 @@
                     <button class="btn btn-success" onclick="enviarPedido()">✅ ENVIAR PEDIDO A COCINA</button>
                 </div>
                 
+                <!-- Menú -->
                 <div>
                     <h3>Menú</h3>
+                    <!-- Filtro simple -->
+                    <input type="text" id="menuSearch" placeholder="🔍 Buscar taco, gringa..." onkeyup="filtrarMenu()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;">
                     <div class="grid" id="gridMenu">Cargando menú...</div>
                 </div>
             </div>
         </div>
 
+        <!-- VISTA COCINA -->
         <div id="view-cocina" class="hidden">
             <div id="cocinaList">Esperando órdenes en tiempo real...</div>
         </div>
@@ -125,7 +141,7 @@
 
     <script>
         // ==========================================
-        // 🔴 CONFIGURACIÓN DE FIREBASE (INTEGRADA) 🔴
+        // 🔴 CONFIGURACIÓN DE FIREBASE ACTUALIZADA 🔴
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyB6LwVZmFSNVXvJgLF9nHy1Y3bkramhuEA",
@@ -147,6 +163,7 @@
         let currentMesa = null;
         let carrito = [];
         let modoCliente = false;
+        let menuCache = []; // Para búsqueda rápida local
 
         // --- CORE: ESCUCHADORES EN TIEMPO REAL (MAGIC) ---
 
@@ -154,7 +171,6 @@
         db.collection("mesas").orderBy("id").onSnapshot((snapshot) => {
             const el = document.getElementById("gridMesas");
             
-            // Si no hay mesas, mostrar instalador
             if(snapshot.empty) {
                 document.getElementById("installer").style.display = 'flex';
                 el.innerHTML = "<p>Base de datos vacía.</p>";
@@ -183,34 +199,54 @@
 
         // 2. Escuchar MENÚ
         db.collection("menu").orderBy("nombre").onSnapshot((snapshot) => {
+            menuCache = [];
+            snapshot.forEach(doc => menuCache.push(doc.data()));
+            renderMenuGrid(menuCache);
+        });
+
+        function renderMenuGrid(items) {
             const el = document.getElementById("gridMenu");
             el.innerHTML = "";
-            snapshot.forEach((doc) => {
-                const p = doc.data();
+            items.forEach((p) => {
                 const btn = document.createElement("div");
                 btn.className = "card";
                 btn.style.cursor = "pointer";
-                btn.innerHTML = `<b>${p.nombre}</b><br><span style="color:var(--primary)">$${p.precio}</span>`;
+                // Color distintivo por categoría
+                let borderCol = "#ddd";
+                if(p.categoria === 'Tacos') borderCol = "#d32f2f"; // Rojo
+                if(p.categoria === 'Bebidas') borderCol = "#1976d2"; // Azul
+                if(p.categoria === 'Especiales') borderCol = "#fbc02d"; // Amarillo
+                
+                btn.style.borderLeft = `4px solid ${borderCol}`;
+                btn.innerHTML = `<b>${p.nombre}</b><br><span style="color:var(--primary)">$${p.precio}</span><br><small style="color:#666">${p.categoria || ''}</small>`;
                 btn.onclick = () => agregarAlCarrito(p);
                 el.appendChild(btn);
             });
-        });
+        }
+
+        function filtrarMenu() {
+            const term = document.getElementById("menuSearch").value.toLowerCase();
+            const filtered = menuCache.filter(p => p.nombre.toLowerCase().includes(term) || (p.categoria && p.categoria.toLowerCase().includes(term)));
+            renderMenuGrid(filtered);
+        }
 
         // 3. Escuchar COMANDAS (Cocina)
         db.collection("comandas")
           .where("estado", "!=", "cerrado")
-          .orderBy("estado", "desc") // Mostrar pendientes primero (requiere indice, si falla usaremos js sort)
           .onSnapshot((snapshot) => {
             const el = document.getElementById("cocinaList");
             el.innerHTML = "";
             if(snapshot.empty) el.innerHTML = "<p style='text-align:center; margin-top:50px;'>Todo limpio, Chef 👨‍🍳</p>";
+            
+            let docs = [];
+            snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+            // Ordenar en cliente para evitar requerir índice complejo ahora
+            docs.sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
-            snapshot.forEach((doc) => {
-                const c = doc.data();
+            docs.forEach((c) => {
                 const card = document.createElement("div");
                 card.className = `card ticket-cocina ${c.estado}`;
                 
-                // Calcular tiempo
                 let tiempo = "Ahora";
                 if(c.timestamp) {
                     const diff = Math.floor((Date.now() - c.timestamp.toDate()) / 1000 / 60);
@@ -218,8 +254,8 @@
                 }
 
                 let btnAccion = "";
-                if(c.estado === 'pendiente') btnAccion = `<button class="btn btn-primary" onclick="cambiarEstado('${doc.id}', 'listo')">🔥 A Fuego</button>`;
-                if(c.estado === 'listo') btnAccion = `<button class="btn btn-success" onclick="cambiarEstado('${doc.id}', 'cerrado')">✅ Entregar y Cerrar</button>`;
+                if(c.estado === 'pendiente') btnAccion = `<button class="btn btn-primary" onclick="cambiarEstado('${c.id}', 'listo')">🔥 A Fuego</button>`;
+                if(c.estado === 'listo') btnAccion = `<button class="btn btn-success" onclick="cambiarEstado('${c.id}', 'cerrado')">✅ Entregar y Cerrar</button>`;
 
                 card.innerHTML = `
                     <h3>Mesa ${c.mesaId} <span class="timer-badge">${tiempo}</span></h3>
@@ -231,15 +267,6 @@
                     ${btnAccion}
                 `;
                 el.appendChild(card);
-            });
-        }, (error) => {
-            // Fallback si falta el índice compuesto en Firebase
-            console.log("Esperando índice...", error);
-            // Reintentar sin ordenar por estado para que funcione al inicio
-            db.collection("comandas").where("estado", "!=", "cerrado").onSnapshot(snap => {
-                 const el = document.getElementById("cocinaList");
-                 el.innerHTML = "";
-                 snap.forEach(doc => { /* Lógica de render repetida... */ });
             });
         });
 
@@ -287,7 +314,6 @@
             if(!currentMesa) return alert("Selecciona una mesa primero");
             
             try {
-                // 1. Guardar Comanda
                 await db.collection("comandas").add({
                     mesaId: currentMesa,
                     items: carrito,
@@ -295,15 +321,9 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // 2. Actualizar estado Mesa (buscamos por ID lógico 'id' no docId para simplificar, 
-                // pero lo ideal es actualizar el doc correspondiente).
-                // En este script simplificado, la UI de mesa se actualiza sola al recibir cambios,
-                // pero debemos escribir el estado en la BD.
-                
-                // Buscar el documento de la mesa y actualizarlo
-                const q = await db.collection("mesas").where("id", "==", currentMesa).get();
-                if(!q.empty) {
-                    q.docs[0].ref.update({ estado: "ocupada" });
+                const mesaRef = await db.collection("mesas").where("id", "==", currentMesa).get();
+                if(!mesaRef.empty) {
+                    mesaRef.docs[0].ref.update({ estado: "ocupada" });
                 }
 
                 alert("¡Pedido enviado a la Nube! ☁️");
@@ -319,9 +339,7 @@
 
         function cambiarEstado(docId, estado) {
             db.collection("comandas").doc(docId).update({ estado: estado });
-            // Si se cierra, liberar mesa
             if(estado === 'cerrado') {
-                 // Recuperar mesaId de la comanda para liberar mesa
                  db.collection("comandas").doc(docId).get().then(doc => {
                      const data = doc.data();
                      db.collection("mesas").where("id", "==", data.mesaId).get().then(q => {
@@ -331,33 +349,105 @@
             }
         }
 
-        // --- INSTALADOR AUTOMÁTICO ---
-        async function instalarBD() {
+        // --- GESTIÓN DE BASE DE DATOS (MENÚ COMPLETO) ---
+
+        // Función para limpiar y recargar el menú completo
+        async function actualizarMenuCompleto() {
+            if(!confirm("⚠️ ESTO BORRARÁ EL MENÚ ACTUAL y cargará el menú completo de Las Brasas.\n¿Estás seguro?")) return;
+            
             const batch = db.batch();
             
-            // 1. Crear Mesas (1 a 10)
-            for(let i=1; i<=10; i++) {
-                // Usamos el ID del documento igual al numero para facilitar
-                const ref = db.collection("mesas").doc(); 
-                batch.set(ref, { id: i, estado: "libre" });
-            }
+            // 1. Borrar menú existente (limitado a 500 ops por batch, pero para menú pequeño está bien)
+            const snapshot = await db.collection("menu").get();
+            snapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
 
-            // 2. Crear Menú Inicial
-            const menu = [
-                { nombre: "Tacos Pastor", precio: 25 },
-                { nombre: "Arrachera", precio: 60 },
-                { nombre: "Gringa", precio: 45 },
-                { nombre: "Refresco", precio: 20 },
-                { nombre: "Cerveza", precio: 35 }
+            // 2. Definir Menú Completo (Extraído de LasBrasas.html)
+            const nuevoMenu = [
+                // Tacos
+                { nombre: "Taco Al Carbón", precio: 40, categoria: "Tacos" },
+                { nombre: "Taco Bistec", precio: 50, categoria: "Tacos" },
+                { nombre: "Taco Cecina", precio: 50, categoria: "Tacos" },
+                { nombre: "Taco Longaniza", precio: 40, categoria: "Tacos" },
+                { nombre: "Taco Arrachera", precio: 60, categoria: "Tacos" },
+                { nombre: "Taco Con Queso (Extra)", precio: 10, categoria: "Tacos" },
+                // Gringas
+                { nombre: "Gringa Normal", precio: 30, categoria: "Gringas" },
+                { nombre: "Gringa Doble", precio: 55, categoria: "Gringas" },
+                { nombre: "Gringa Champiqueso", precio: 30, categoria: "Gringas" },
+                { nombre: "Gringa Choriqueso", precio: 30, categoria: "Gringas" },
+                { nombre: "Megagringa", precio: 60, categoria: "Gringas" },
+                { nombre: "Gringa Arrachera", precio: 35, categoria: "Gringas" },
+                // Ensaladas
+                { nombre: "Ensalada Sencilla", precio: 80, categoria: "Ensaladas" },
+                { nombre: "Ensalada Carne al Carbón", precio: 90, categoria: "Ensaladas" },
+                { nombre: "Ensalada Bistec / Cecina", precio: 110, categoria: "Ensaladas" },
+                { nombre: "Ensalada Arrachera", precio: 120, categoria: "Ensaladas" },
+                { nombre: "Ensalada Pan Extra", precio: 15, categoria: "Ensaladas" },
+                // Queso Fundido
+                { nombre: "Queso Fundido Sencilla", precio: 90, categoria: "Queso Fundido" },
+                { nombre: "Queso Fundido Bistec / Cecina", precio: 110, categoria: "Queso Fundido" },
+                { nombre: "Queso Fundido Arrachera", precio: 120, categoria: "Queso Fundido" },
+                // Extras
+                { nombre: "Ord. Cebolla", precio: 15, categoria: "Extras" },
+                { nombre: "Ord. Semilla", precio: 15, categoria: "Extras" },
+                // Picaditas
+                { nombre: "Picadita Sencilla", precio: 35, categoria: "Picaditas" },
+                { nombre: "Picadita Carne al Carbón", precio: 60, categoria: "Picaditas" },
+                { nombre: "Picadita Cecina", precio: 70, categoria: "Picaditas" },
+                { nombre: "Picadita Bistec", precio: 70, categoria: "Picaditas" },
+                { nombre: "Picadita Longaniza", precio: 60, categoria: "Picaditas" },
+                { nombre: "Picadita Arrachera", precio: 70, categoria: "Picaditas" },
+                // Tortas
+                { nombre: "Torta Al Carbón", precio: 50, categoria: "Tortas" },
+                { nombre: "Torta Bistec", precio: 60, categoria: "Tortas" },
+                { nombre: "Torta Cecina", precio: 60, categoria: "Tortas" },
+                { nombre: "Torta Arrachera", precio: 75, categoria: "Tortas" },
+                { nombre: "Megatorta", precio: 70, categoria: "Tortas" },
+                // Especiales
+                { nombre: "Parrillada", precio: 95, categoria: "Especiales" },
+                { nombre: "Alambre", precio: 95, categoria: "Especiales" },
+                { nombre: "Fortachón", precio: 100, categoria: "Especiales" },
+                { nombre: "Pastor c/Queso", precio: 100, categoria: "Especiales" },
+                { nombre: "Kilo de Carne", precio: 420, categoria: "Especiales" },
+                // Volcán
+                { nombre: "Volcán Carne al Carbón (1 Pza)", precio: 18, categoria: "Volcán" },
+                { nombre: "Volcán Bistec / Cecina (1 Pza)", precio: 21, categoria: "Volcán" },
+                { nombre: "Volcán Arrachera", precio: 25, categoria: "Volcán" },
+                // Bebidas
+                { nombre: "Refresco", precio: 25, categoria: "Bebidas" },
+                { nombre: "Refresco 600ml", precio: 30, categoria: "Bebidas" },
+                { nombre: "Cerveza", precio: 40, categoria: "Bebidas" },
+                { nombre: "Modelo Especial", precio: 45, categoria: "Bebidas" },
+                { nombre: "Botella de Agua 1 Lt", precio: 20, categoria: "Bebidas" },
+                { nombre: "Agua 1/2 Lt", precio: 18, categoria: "Bebidas" },
+                { nombre: "Agua 1 Lt", precio: 30, categoria: "Bebidas" }
             ];
-            
-            menu.forEach(item => {
+
+            nuevoMenu.forEach(item => {
                 const ref = db.collection("menu").doc();
                 batch.set(ref, item);
             });
 
             await batch.commit();
-            alert("¡Instalación Completa! El sistema se reiniciará.");
+            alert("✅ ¡Menú actualizado correctamente en la Nube!");
+        }
+
+        async function instalarBD() {
+            // Esta función instala lo básico si está vacío,
+            // pero para el menú completo usamos actualizarMenuCompleto()
+            const batch = db.batch();
+            
+            // 1. Crear Mesas (1 a 10)
+            for(let i=1; i<=10; i++) {
+                const ref = db.collection("mesas").doc(); 
+                batch.set(ref, { id: i, estado: "libre" });
+            }
+            await batch.commit();
+            
+            // Llamar a la función del menú completo
+            await actualizarMenuCompleto();
             window.location.reload();
         }
 
@@ -393,10 +483,8 @@
             document.getElementById("qrcode").innerHTML = "";
             const url = window.location.href.split('?')[0] + "?mesa=" + id;
             new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
-            document.getElementById("qrLink").innerText = url;
         }
 
-        // Auto-login cliente por URL
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
             if(params.get('mesa')) {
