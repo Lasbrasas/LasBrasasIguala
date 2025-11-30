@@ -3,613 +3,496 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Comandas Pro</title>
+    <title>Las Brasas POS v5.0 - Chef & Split</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
+        /* --- VARIABLES & BASE --- */
+        :root { 
+            --primary: #d32f2f; 
+            --secondary: #b71c1c; 
+            --accent: #ffc107; 
+            --bg: #f4f6f9; 
+            --dark-bg: #121212;
+            --dark-card: #1e1e1e;
+            --dark-text: #e0e0e0;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); min-height: 100vh; color: #333; transition: 0.3s; }
         
-        /* Login */
-        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .login-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); text-align: center; width: 400px; }
-        .login-card h1 { color: #333; margin-bottom: 30px; font-size: 2.5em; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; }
-        .form-group input, .form-group select { width: 100%; padding: 15px; border: 2px solid #e1e5e9; border-radius: 10px; font-size: 16px; transition: all 0.3s; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
-        .btn { padding: 15px 30px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; width: 100%; margin: 10px 0; }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102,126,234,0.3); }
-        .btn-success { background: #28a745; color: white; }
-        .btn-warning { background: #ffc107; color: #333; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-info { background: #17a2b8; color: white; }
+        /* UTILIDADES */
+        .hidden { display: none !important; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+        .btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 5px; transition: 0.2s; }
+        .btn:hover { filter: brightness(90%); transform: translateY(-1px); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: #2e7d32; color: white; }
+        .btn-warning { background: var(--accent); color: #333; }
+        .btn-dark { background: #333; color: white; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-        /* Main App */
-        .app { display: none; }
-        .header { background: white; padding: 20px; border-radius: 20px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-        .user-info { display: flex; align-items: center; gap: 15px; }
-        .role-badge { padding: 8px 16px; border-radius: 20px; color: white; font-weight: 600; font-size: 14px; }
-        .mesero { background: #007bff; }
-        .caja { background: #28a745; }
-        .cocina { background: #fd7e14; }
-        .admin { background: #6f42c1; }
-        .mesa-status { display: inline-flex; gap: 10px; flex-wrap: wrap; }
-        .mesa { padding: 10px 15px; margin: 5px; border-radius: 10px; color: white; font-weight: 500; cursor: pointer; transition: all 0.3s; min-width: 60px; text-align: center; }
-        .mesa.libre { background: #28a745; }
-        .mesa.ocupada { background: #007bff; }
-        .mesa.esperando { background: #ffc107; color: #333; }
-        .mesa.pagada { background: #6c757d; }
+        /* MODOS VISUALES */
+        body.dark-mode { background: var(--dark-bg); color: var(--dark-text); }
+        body.dark-mode .card { background: var(--dark-card); color: var(--dark-text); box-shadow: none; border: 1px solid #333; }
+        body.dark-mode .tab { background: #333; color: #ccc; }
+        body.dark-mode .tab.active { background: var(--primary); color: white; }
 
-        /* Tabs */
-        .tabs { display: flex; background: white; border-radius: 15px; padding: 5px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); overflow-x: auto; }
-        .tab { padding: 15px 25px; border-radius: 10px; border: none; background: transparent; cursor: pointer; font-weight: 500; transition: all 0.3s; white-space: nowrap; }
-        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .tab-content { display: none; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .tab-content.active { display: block; }
+        /* LOGIN */
+        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; position: fixed; top: 0; left: 0; width: 100%; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); z-index: 1000; }
+        .login-card { background: white; padding: 40px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
 
-        /* Cards */
-        .card { background: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
-        .card h3 { color: #333; margin-bottom: 20px; font-size: 1.4em; display: flex; align-items: center; gap: 10px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-        .product-card { border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.3s; }
-        .product-card:hover { border-color: #667eea; transform: translateY(-5px); box-shadow: 0 15px 30px rgba(102,126,234,0.15); }
-        .product-card.sin-stock { opacity: 0.5; cursor: not-allowed; }
-        .product-card.sin-stock:hover { transform: none; }
-        .product-name { font-weight: 600; color: #333; margin-bottom: 8px; }
-        .product-price { font-size: 1.2em; color: #28a745; font-weight: 700; }
-        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #f8f9fa; border-radius: 10px; margin-bottom: 10px; }
-        .total { font-size: 2em; font-weight: 700; color: #28a745; text-align: right; padding: 20px; background: #f8f9fa; border-radius: 15px; }
+        /* HEADER APP */
+        .app-header { background: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        /* TABS */
+        .tabs { display: flex; gap: 10px; overflow-x: auto; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; border: none; background: white; border-radius: 5px; cursor: pointer; white-space: nowrap; font-weight: bold; color: #555; }
+        .tab.active { background: var(--primary); color: white; }
 
-        /* Reports */
-        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .metric-card { text-align: center; padding: 30px; border-radius: 20px; }
-        .metric-value { font-size: 3em; font-weight: 700; color: #667eea; }
-        .metric-label { color: #666; font-size: 1.1em; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #e9ecef; }
-        th { background: #f8f9fa; font-weight: 600; color: #333; }
+        /* MESAS */
+        .mesa { height: 110px; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; cursor: pointer; position: relative; transition: 0.2s; border: 2px solid transparent; }
+        .mesa:hover { transform: scale(1.03); }
+        .mesa.libre { background: #4caf50; }
+        .mesa.ocupada { background: #d32f2f; }
+        .mesa.pidiendo_cuenta { background: #ff9800; animation: blink 1s infinite; border: 3px solid white; }
+        @keyframes blink { 50% { opacity: 0.7; } }
+        .qr-btn { position: absolute; bottom: 5px; right: 5px; background: white; color: #333; border-radius: 50%; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border:none; cursor: pointer; }
 
-        /* Responsive */
-        @media (max-width: 768px) { .container { padding: 10px; } .header { flex-direction: column; gap: 15px; text-align: center; } .grid { grid-template-columns: 1fr; } }
+        /* COCINA CARD */
+        .ticket-cocina { border-left: 5px solid #ccc; position: relative; }
+        .ticket-cocina.pendiente { border-color: #ff9800; }
+        .ticket-cocina.fuego { border-color: #d32f2f; background: #ffebee; }
+        .ticket-cocina.listo { border-color: #2e7d32; background: #e8f5e9; }
+        body.dark-mode .ticket-cocina.fuego { background: #2c0b0e; }
+        body.dark-mode .ticket-cocina.listo { background: #0c1e0f; }
+
+        .timer-badge { position: absolute; top: 10px; right: 10px; font-family: monospace; font-size: 1.2em; font-weight: bold; }
+        .timer-badge.delayed { color: #ff5252; animation: blink 2s infinite; }
+
+        /* MODAL SPLIT CHECK */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 500px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
+        .split-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
+        .split-item.paid { opacity: 0.5; text-decoration: line-through; background: #f0f0f0; }
+
+        /* UI CLIENTE */
+        .app-cliente .product-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; margin-bottom: 5px; }
+        .client-status-bar { background: #333; color: white; padding: 10px; text-align: center; position: sticky; top: 60px; z-index: 90; display: none; }
     </style>
 </head>
 <body>
-    <!-- Login Screen -->
-    <div class="login-screen" id="loginScreen">
-        <div class="login-card">
-            <h1>🍽️ Sistema de Comandas</h1>
-            <div class="form-group">
-                <label>Tu Nombre</label>
-                <input type="text" id="userName" placeholder="Juan Pérez" required>
-            </div>
-            <div class="form-group">
-                <label>Rol</label>
-                <select id="userRole">
-                    <option value="mesero">Mesero</option>
-                    <option value="caja">Caja</option>
-                    <option value="cocina">Cocina</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" onclick="login()">Entrar al Sistema</button>
+
+    <div id="qrModal" class="modal-overlay" onclick="closeQR()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>Escanea para Mesa <span id="qrMesaNum"></span> 📱</h3>
+            <div id="qrcode" style="margin: 20px auto; display: flex; justify-content: center;"></div>
+            <p id="qrLink" style="font-size:0.8em; color:#666;"></p>
+            <button class="btn btn-primary" onclick="closeQR()">Cerrar</button>
         </div>
     </div>
 
-    <!-- Main App -->
-    <div class="app" id="app">
-        <div class="container">
-            <!-- Header -->
-            <div class="header">
-                <div>
-                    <h2>🍽️ Sistema de Comandas Pro</h2>
-                    <div class="mesa-status" id="mesaStatus"></div>
-                </div>
-                <div class="user-info">
-                    <span id="userId">ID: Cargando...</span>
-                    <div class="role-badge" id="roleBadge">Mesero</div>
-                    <button class="btn btn-danger" onclick="logout()">Salir</button>
-                </div>
+    <div id="cobroModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>💰 Cobrar Mesa <span id="cobroMesaNum"></span></h3>
+            <p style="color:#666; font-size:0.9em; margin-bottom:15px;">Selecciona los productos a cobrar ahora.</p>
+            
+            <div id="splitListContainer"></div>
+            
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-top:15px; text-align:right;">
+                <p>Por cobrar ahora: <b style="font-size:1.5em; color:#2e7d32;" id="splitTotal">$0.00</b></p>
             </div>
 
-            <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('mesas')">Estado Mesas</button>
-                <button class="tab" onclick="showTab('nueva')">Nueva Comanda</button>
-                <button class="tab" onclick="showTab('ordenes')">Órdenes Activas</button>
-                <button class="tab" onclick="showTab('cocina')">Vista Cocina</button>
-                <button class="tab" onclick="showTab('cliente')">Vista Cliente</button>
-                <button class="tab" onclick="showTab('caja')">Caja</button>
-                <button class="tab" onclick="showTab('reportes')">Reportes</button>
-                <button class="tab" onclick="showTab('admin')" id="adminTab" style="display:none;">Admin</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px;">
+                <button class="btn btn-warning" onclick="cerrarModalCobro()">Cancelar</button>
+                <button class="btn btn-success" onclick="procesarPagoParcial()">💸 Pagar Seleccionado</button>
             </div>
+        </div>
+    </div>
 
-            <!-- Tab Contents -->
-            <div id="mesas" class="tab-content active">
-                <div class="card">
-                    <h3>📍 Estado de Mesas (20 Mesas)</h3>
-                    <div id="mesasGrid" class="grid"></div>
-                </div>
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <h1 style="color:var(--primary)">🔥 Las Brasas</h1>
+            <p>POS v5.0 "Chef Edition"</p>
+            <br>
+            <input type="text" id="userInput" placeholder="Usuario" style="width:100%; padding:10px; margin-bottom:10px;">
+            <select id="roleInput" style="width:100%; padding:10px; margin-bottom:20px;">
+                <option value="mesero">Mesero</option>
+                <option value="caja">Caja</option>
+                <option value="cocina">Cocina (Chef)</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button class="btn btn-primary" onclick="login()">Entrar</button>
+        </div>
+    </div>
+
+    <div id="appSystem" class="container hidden" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+        
+        <div class="app-header">
+            <div>
+                <h2 style="color:var(--primary);">🔥 Panel de Control</h2>
+                <small id="userDisplay"></small>
             </div>
-
-            <div id="nueva" class="tab-content">
-                <div class="card">
-                    <h3>➕ Nueva Comanda</h3>
-                    <div class="grid" style="grid-template-columns: 1fr 1fr;">
-                        <div>
-                            <label>Mesa:</label>
-                            <select id="mesaSelect" style="width:100%; padding:15px; border-radius:10px; font-size:16px;"></select>
-                            <label>Comensales:</label>
-                            <input type="number" id="comensales" value="2" min="1" max="10" style="width:100%; padding:10px;">
-                        </div>
-                        <div>
-                            <label>Categoría:</label>
-                            <select id="categoriaFilter" style="width:100%; padding:15px; border-radius:10px;"><option>Todas</option></select>
-                            <label>Búsqueda:</label>
-                            <input type="text" id="busqueda" placeholder="Buscar producto..." style="width:100%; padding:10px;">
-                        </div>
-                    </div>
-                    <div id="productosGrid" class="grid" style="margin-top:20px;"></div>
-                </div>
-                <div class="card">
-                    <h3>📋 Resumen Comanda</h3>
-                    <div id="resumenComanda"></div>
-                    <div class="total" id="totalComanda">$0.00</div>
-                    <div style="display:flex; gap:15px; flex-wrap:wrap;">
-                        <button class="btn btn-success" onclick="guardarComanda()">💾 Guardar Comanda</button>
-                        <button class="btn btn-warning" onclick="dividirCuenta()">👥 Dividir Cuenta</button>
-                        <button class="btn btn-info" onclick="agregarDescuento()">% Descuento</button>
-                    </div>
-                </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-dark" style="width:auto; padding:8px 15px;" onclick="toggleDarkMode()">🌙 Cocina Mode</button>
+                <button class="btn btn-warning" style="width:auto; padding:8px 15px;" onclick="logout()">Salir</button>
             </div>
+        </div>
 
-            <div id="ordenes" class="tab-content">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('mesas')">📍 Mesas</button>
+            <button class="tab" onclick="showTab('comanda')">📝 Comanda</button>
+            <button class="tab" onclick="showTab('cocina')">🔥 Cocina Live</button>
+            <button class="tab" onclick="showTab('caja')">💰 Caja & Split</button>
+            <button class="tab" onclick="showTab('admin')" id="tabAdmin">⚙️ Menú</button>
+        </div>
+
+        <div id="mesas" class="tab-content">
+            <div class="grid" id="mesasGrid"></div>
+        </div>
+
+        <div id="comanda" class="tab-content hidden">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
                 <div class="card">
-                    <h3>⏰ Órdenes Activas</h3>
-                    <div id="ordenesActivas"></div>
+                    <input type="text" placeholder="🔍 Buscar producto..." oninput="renderMenu(this.value)" style="width:100%; padding:10px; margin-bottom:10px;">
+                    <div class="grid" id="menuGrid"></div>
                 </div>
-            </div>
-
-            <div id="cocina" class="tab-content">
-                <div class="card">
-                    <h3>👨‍🍳 Vista de Cocina</h3>
-                    <div id="vistaCocina"></div>
+                <div class="card" style="height:fit-content; position:sticky; top:20px;">
+                    <h3>Mesa <span id="mesaTitle">--</span></h3>
+                    <div id="lockStatus" class="hidden" style="background:#ffebee; color:#c62828; padding:10px; margin:5px 0; font-size:0.9em;">🔒 Orden en Cocina. Solo lectura.</div>
+                    <div id="comandaItems" style="max-height:400px; overflow-y:auto; margin:10px 0;"></div>
+                    <h2 style="text-align:right;" id="totalLabel">$0.00</h2>
+                    <button class="btn btn-success" id="btnEnviar" onclick="guardarComanda()">✅ Enviar a Cocina</button>
                 </div>
             </div>
+        </div>
 
-            <div id="cliente" class="tab-content">
-                <div class="card">
-                    <h3>👤 Vista de Cliente</h3>
-                    <div id="vistaCliente">
-                        <p>Escanea QR de tu mesa para ver el menú y hacer pedidos directamente.</p>
-                    </div>
+        <div id="cocina" class="tab-content hidden">
+            <div class="grid" id="cocinaGrid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));"></div>
+        </div>
+
+        <div id="caja" class="tab-content hidden">
+            <div class="grid" id="cajaGrid"></div>
+        </div>
+        
+        <div id="admin" class="tab-content hidden">
+            <div class="card">
+                <h3>Gestión Rápida de Menú</h3>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <input id="newProdName" placeholder="Nombre" style="flex:2; padding:10px;">
+                    <input id="newProdPrice" type="number" placeholder="$" style="flex:1; padding:10px;">
+                    <select id="newProdCat" style="flex:1; padding:10px;">
+                        <option>Tacos</option><option>Bebidas</option><option>Postres</option>
+                    </select>
+                    <button class="btn btn-primary" style="flex:1;" onclick="addProducto()">Agregar</button>
                 </div>
+                <div id="adminList"></div>
             </div>
+        </div>
+    </div>
 
-            <div id="caja" class="tab-content">
-                <div class="card">
-                    <h3>💰 Caja - Cerrar Comandas</h3>
-                    <div id="cajaComandas"></div>
-                </div>
+    <div id="appCliente" class="app-cliente hidden">
+        <div style="background:var(--primary); color:white; padding:15px; position:sticky; top:0; z-index:100; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+            <h2 style="margin:0;">🌮 Las Brasas</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Mesa <span id="clienteMesaNum"></span></span>
+                <button class="btn btn-warning" style="width:auto; padding:5px 15px; font-size:0.8em;" onclick="solicitarCuenta()">👋 Pedir Cuenta</button>
             </div>
+        </div>
 
-            <div id="reportes" class="tab-content">
-                <div class="report-grid">
-                    <div class="metric-card">
-                        <div class="metric-value" id="totalDia">$0</div>
-                        <div class="metric-label">Ventas del Día</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="ticketPromedio">$0</div>
-                        <div class="metric-label">Ticket Promedio</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="comandasDia">0</div>
-                        <div class="metric-label">Comandas Día</div>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>📊 Transacciones del Día</h3>
-                    <table id="transaccionesTabla">
-                        <thead><tr><th>ID</th><th>Mesa</th><th>Total</th><th>Método</th><th>Mesero</th><th>Fecha</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <button class="btn btn-primary" onclick="exportarCSV()" style="margin-top:20px;">📥 Exportar CSV</button>
-                </div>
-            </div>
+        <div id="clientStatus" class="client-status-bar">🔥 Tu orden se está preparando...</div>
 
-            <div id="admin" class="tab-content">
-                <div class="card">
-                    <h3>⚙️ Panel Admin</h3>
-                    <div class="grid">
-                        <div>
-                            <h4>Gestión de Menú</h4>
-                            <input type="text" id="nuevoProducto" placeholder="Nombre producto">
-                            <input type="number" id="precioProducto" placeholder="Precio" step="0.01">
-                            <select id="categoriaProducto"><option>Comida</option><option>Bebida</option><option>Postre</option></select>
-                            <button class="btn btn-success" onclick="agregarProducto()">Agregar Producto</button>
-                        </div>
-                        <div>
-                            <h4>Configuración</h4>
-                            <button class="btn btn-warning" onclick="resetearTodo()">Resetear Sistema</button>
-                            <button class="btn btn-info" onclick="generarQRs()">Generar QRs Mesas</button>
-                        </div>
-                    </div>
-                    <div id="adminMenuList"></div>
-                </div>
+        <div style="padding:15px;" id="clienteMenu"></div>
+
+        <div style="position:fixed; bottom:20px; right:20px; background:#2e7d32; color:white; padding:15px 25px; border-radius:30px; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-weight:bold; cursor:pointer;" onclick="toggleClientCart()">
+            🛒 Ver Orden (<span id="clientCartCount">0</span>)
+        </div>
+
+        <div id="clientCartModal" class="modal-overlay" style="align-items:flex-end;">
+            <div class="modal-content" style="width:100%; border-radius: 20px 20px 0 0; max-height:80vh;">
+                <h3>Tu Pedido</h3>
+                <div id="clientCartList"></div>
+                <button class="btn btn-success" onclick="clientSendOrder()">🚀 Enviar Pedido</button>
+                <button class="btn btn-dark" onclick="toggleClientCart()">Seguir viendo</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Estado global de la aplicación
-        let currentUser = { name: '', role: '', id: '' };
-        let mesas = Array(20).fill().map((_, i) => ({ id: i+1, estado: 'libre', comensales: 0, comandaId: null }));
-        let menu = [
-            { id: 1, nombre: 'Hamburguesa Clásica', precio: 12.99, categoria: 'Comida', stock: true },
-            { id: 2, nombre: 'Pizza Margherita', precio: 14.50, categoria: 'Comida', stock: true },
-            { id: 3, nombre: 'Coca Cola 500ml', precio: 2.50, categoria: 'Bebida', stock: true },
-            { id: 4, nombre: 'Agua Natural', precio: 1.80, categoria: 'Bebida', stock: true },
-            { id: 5, nombre 'Helado Fresa', precio: 4.20, categoria: 'Postre', stock: true },
-            // Más productos...
+        // --- DATA STORE ---
+        const DEFAULT_MENU = [
+            { id: 1, nombre: 'Tacos al Pastor', precio: 25, categoria: 'Tacos', img: 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?auto=format&fit=crop&w=200&q=80' },
+            { id: 2, nombre: 'Arrachera', precio: 60, categoria: 'Tacos', img: 'https://images.unsplash.com/photo-1613514785940-daed07799d9b?auto=format&fit=crop&w=200&q=80' },
+            { id: 3, nombre: 'Coca Cola', precio: 25, categoria: 'Bebidas', img: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=200&q=80' },
+            { id: 4, nombre: 'Quesadilla', precio: 35, categoria: 'Antojitos', img: 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?auto=format&fit=crop&w=200&q=80' }
         ];
-        let comandas = [];
-        let comandaActual = { items: [], mesa: null, total: 0, descuento: 0 };
 
-        // Inicialización
-        function generarId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        let db = JSON.parse(localStorage.getItem('brasas_v5')) || {
+            mesas: Array(10).fill().map((_,i)=>({id:i+1, estado:'libre', comandaId:null, pidiendoCuenta:false})),
+            menu: DEFAULT_MENU,
+            comandas: []
+        };
+
+        let session = { user: '', role: '' };
+        let tempComanda = { mesaId: null, items: [] };
+        let isCliente = false;
+
+        // --- CORE FUNCTIONS ---
+        function saveDB() {
+            localStorage.setItem('brasas_v5', JSON.stringify(db));
+            if(!isCliente) renderAll();
         }
+
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            if(params.get('mode') === 'cliente') {
+                initCliente(parseInt(params.get('mesa')));
+            } else {
+                // Iniciar timer cocina
+                setInterval(updateCocinaTimers, 1000); 
+            }
+        };
 
         function login() {
-            const name = document.getElementById('userName').value;
-            const role = document.getElementById('userRole').value;
-            if (!name) return alert('Ingresa tu nombre');
+            session.user = document.getElementById('userInput').value || 'Staff';
+            session.role = document.getElementById('roleInput').value;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appSystem').classList.remove('hidden');
+            document.getElementById('userDisplay').innerText = `${session.user} | ${session.role.toUpperCase()}`;
+            if(session.role === 'admin') document.getElementById('tabAdmin').classList.remove('hidden');
             
-            currentUser = { name, role, id: generarId() };
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
-            document.getElementById('userId').textContent = `ID: ${currentUser.id.slice(-6)}`;
-            document.getElementById('roleBadge').textContent = currentUser.role.toUpperCase();
-            document.getElementById('roleBadge').className = `role-badge ${currentUser.role}`;
-            if (currentUser.role === 'admin') document.getElementById('adminTab').style.display = 'block';
+            // Auto dark mode para cocina
+            if(session.role === 'cocina') document.body.classList.add('dark-mode');
             
-            actualizarTodo();
+            renderAll();
         }
 
-        function logout() {
-            document.getElementById('app').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
-            currentUser = {};
+        function logout() { location.reload(); }
+        function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+
+        function renderAll() {
+            renderMesas();
+            renderCocina();
+            renderCaja();
+            if(session.role === 'admin') renderAdmin();
         }
 
-        function showTab(tabId) {
-            if (currentUser.role === 'cocina' && tabId !== 'cocina' && tabId !== 'mesas') return;
-            if (currentUser.role === 'caja' && !['caja', 'mesas', 'reportes'].includes(tabId)) return;
-            
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        function showTab(id) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
             event.target.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
         }
 
-        function actualizarTodo() {
-            actualizarMesas();
-            actualizarMenu();
-            actualizarComandas();
-            actualizarReportes();
-        }
-
-        // Gestión de Mesas
-        function actualizarMesas() {
-            const grid = document.getElementById('mesaStatus');
+        // --- MESAS ---
+        function renderMesas() {
+            const grid = document.getElementById('mesasGrid');
             grid.innerHTML = '';
-            mesas.forEach(mesa => {
-                const btn = document.createElement('div');
-                btn.className = `mesa ${mesa.estado}`;
-                btn.textContent = mesa.id;
-                btn.onclick = () => seleccionarMesa(mesa.id);
-                grid.appendChild(btn);
-            });
-
-            const select = document.getElementById('mesaSelect');
-            select.innerHTML = '<option value="">Selecciona mesa...</option>';
-            mesas.forEach(mesa => {
-                const option = document.createElement('option');
-                option.value = mesa.id;
-                option.textContent = `Mesa ${mesa.id} (${mesa.estado})`;
-                select.appendChild(option);
-            });
-        }
-
-        function seleccionarMesa(mesaId) {
-            const mesa = mesas.find(m => m.id == mesaId);
-            document.getElementById('mesaSelect').value = mesaId;
-            comandaActual.mesa = mesaId;
-            actualizarResumen();
-        }
-
-        // Menú y Productos
-        function actualizarMenu() {
-            const grid = document.getElementById('productosGrid');
-            grid.innerHTML = '';
-            const filtro = document.getElementById('categoriaFilter').value;
-            const busqueda = document.getElementById('busqueda').value.toLowerCase();
-            
-            menu.filter(p => 
-                (!filtro || p.categoria === filtro) &&
-                p.nombre.toLowerCase().includes(busqueda)
-            ).forEach(producto => {
-                const card = document.createElement('div');
-                card.className = `product-card ${!producto.stock ? 'sin-stock' : ''}`;
-                card.innerHTML = `
-                    <div class="product-name">${producto.nombre}</div>
-                    <div class="product-price">$${producto.precio.toFixed(2)}</div>
-                    <small>${producto.categoria}</small>
-                `;
-                if (producto.stock) card.onclick = () => agregarProducto(producto);
-                grid.appendChild(card);
-            });
-        }
-
-        function agregarProducto(producto) {
-            const itemExistente = comandaActual.items.find(item => item.id === producto.id);
-            if (itemExistente) {
-                itemExistente.cantidad += 1;
-            } else {
-                comandaActual.items.push({ ...producto, cantidad: 1, nota: '' });
-            }
-            actualizarResumen();
-        }
-
-        function actualizarResumen() {
-            const resumen = document.getElementById('resumenComanda');
-            resumen.innerHTML = '';
-            
-            let total = 0;
-            comandaActual.items.forEach((item, index) => {
-                const subtotal = item.precio * item.cantidad;
-                total += subtotal;
+            db.mesas.forEach(m => {
                 const div = document.createElement('div');
-                div.className = 'order-item';
+                let cssClass = m.estado;
+                if(m.pidiendoCuenta) cssClass += ' pidiendo_cuenta';
+                
+                div.className = `mesa ${cssClass}`;
                 div.innerHTML = `
-                    <div>
-                        <strong>${item.nombre} x${item.cantidad}</strong>
-                        ${item.nota ? `<br><small>${item.nota}</small>` : ''}
-                    </div>
-                    <div>
-                        <span>$${subtotal.toFixed(2)}</span>
-                        <div style="gap:5px;display:flex;align-items:center;">
-                            <input style="width:40px" type="text" placeholder="nota" onchange="actualizarNota(${index},this.value)">
-                            <button onclick="cambiarCantidad(${index},-1)">−</button>
-                            <button onclick="cambiarCantidad(${index},1)">+</button>
-                            <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;" onclick="eliminarItem(${index})">×</button>
-                        </div>
-                    </div>
+                    <span style="font-size:2em">${m.id}</span>
+                    <small>${m.pidiendoCuenta ? '💸 CUENTA' : m.estado.toUpperCase()}</small>
+                    ${!isCliente ? `<button class="qr-btn" onclick="event.stopPropagation(); showQR(${m.id})">📱</button>` : ''}
                 `;
-                resumen.appendChild(div);
+                div.onclick = () => abrirComanda(m.id);
+                grid.appendChild(div);
             });
-
-            comandaActual.total = total * (1 - comandaActual.descuento / 100);
-            document.getElementById('totalComanda').textContent = `$${comandaActual.total.toFixed(2)}`;
         }
 
-        function cambiarCantidad(index, delta) {
-            comandaActual.items[index].cantidad += delta;
-            if (comandaActual.items[index].cantidad <= 0) {
-                comandaActual.items.splice(index, 1);
+        function showQR(id) {
+            document.getElementById('qrModal').style.display = 'flex';
+            document.getElementById('qrcode').innerHTML = '';
+            document.getElementById('qrMesaNum').innerText = id;
+            
+            const url = `${window.location.href.split('?')[0]}?mode=cliente&mesa=${id}`;
+            new QRCode(document.getElementById('qrcode'), { text: url, width: 200, height: 200 });
+            document.getElementById('qrLink').innerHTML = `<a href="${url}" target="_blank">Abrir Link Prueba</a>`;
+        }
+        function closeQR() { document.getElementById('qrModal').style.display = 'none'; }
+
+        // --- COMANDA ---
+        function abrirComanda(mesaId) {
+            showTab('comanda');
+            tempComanda = { mesaId, items: [] };
+            const mesa = db.mesas.find(m => m.id === mesaId);
+            document.getElementById('mesaTitle').innerText = mesaId;
+            
+            // Reset UI
+            document.getElementById('btnEnviar').classList.remove('hidden');
+            document.getElementById('lockStatus').classList.add('hidden');
+            document.getElementById('menuGrid').style.pointerEvents = 'auto';
+
+            if(mesa.comandaId) {
+                const com = db.comandas.find(c => c.id === mesa.comandaId);
+                if(com) {
+                    tempComanda = JSON.parse(JSON.stringify(com));
+                    // REGLA: Si está en fuego, se bloquea edición simple
+                    if(com.estado === 'fuego' || com.estado === 'listo') {
+                        document.getElementById('btnEnviar').classList.add('hidden');
+                        document.getElementById('lockStatus').classList.remove('hidden');
+                        document.getElementById('menuGrid').style.pointerEvents = 'none';
+                    }
+                }
             }
-            actualizarResumen();
+            renderMenu();
+            renderItems();
         }
 
-        function actualizarNota(index, nota) {
-            comandaActual.items[index].nota = nota;
+        function renderMenu(filter='') {
+            const grid = document.getElementById('menuGrid');
+            grid.innerHTML = '';
+            db.menu.filter(p => p.nombre.toLowerCase().includes(filter.toLowerCase())).forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'product-card card';
+                div.style.padding = '10px';
+                div.style.cursor = 'pointer';
+                div.innerHTML = `
+                    <div style="font-weight:bold;">${p.nombre}</div>
+                    <div style="color:var(--primary);">$${p.precio}</div>
+                `;
+                div.onclick = () => addItem(p);
+                grid.appendChild(div);
+            });
         }
 
-        function eliminarItem(index) {
-            comandaActual.items.splice(index, 1);
-            actualizarResumen();
+        function addItem(prod) {
+            // Añadir item con flag 'pagado: false'
+            tempComanda.items.push({ ...prod, uid: Date.now() + Math.random(), pagado: false });
+            renderItems();
+        }
+
+        function renderItems() {
+            const list = document.getElementById('comandaItems');
+            list.innerHTML = '';
+            let total = 0;
+            tempComanda.items.forEach((item, idx) => {
+                if(!item.pagado) total += item.precio;
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.padding = '5px';
+                div.style.borderBottom = '1px solid #eee';
+                if(item.pagado) {
+                    div.style.opacity = '0.5';
+                    div.style.textDecoration = 'line-through';
+                }
+                
+                div.innerHTML = `
+                    <span>${item.nombre}</span>
+                    <span>$${item.precio} ${!item.pagado ? `<span onclick="remItem(${idx})" style="color:red;cursor:pointer;margin-left:5px;">✕</span>` : '✅'}</span>
+                `;
+                list.appendChild(div);
+            });
+            document.getElementById('totalLabel').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function remItem(idx) {
+            tempComanda.items.splice(idx, 1);
+            renderItems();
         }
 
         function guardarComanda() {
-            if (!comandaActual.mesa || comandaActual.items.length === 0) {
-                return alert('Selecciona mesa y agrega productos');
+            if(tempComanda.items.length === 0) return alert("Orden vacía");
+            
+            let comanda;
+            if(tempComanda.id) {
+                // Update
+                const idx = db.comandas.findIndex(c => c.id === tempComanda.id);
+                db.comandas[idx].items = tempComanda.items;
+                // Si agregamos cosas, podría regresar a pendiente? En v5 simplificamos: No cambia estado si ya estaba en fuego.
+            } else {
+                // Nueva
+                comanda = {
+                    ...tempComanda,
+                    id: Date.now().toString(),
+                    estado: 'pendiente',
+                    creada: Date.now(),
+                    timestamp: Date.now()
+                };
+                db.comandas.push(comanda);
+                const m = db.mesas.find(x => x.id === tempComanda.mesaId);
+                m.estado = 'ocupada';
+                m.comandaId = comanda.id;
             }
-            
-            const comandaId = generarId();
-            const mesa = mesas.find(m => m.id == comandaActual.mesa);
-            mesa.estado = 'ocupada';
-            mesa.comandaId = comandaId;
-            
-            comandas.push({
-                id: comandaId,
-                mesa: comandaActual.mesa,
-                items: [...comandaActual.items],
-                total: comandaActual.total,
-                estado: 'pendiente',
-                mesero: currentUser.name,
-                timestamp: new Date(),
-                descuento: comandaActual.descuento
-            });
-
-            comandaActual = { items: [], mesa: null, total: 0, descuento: 0 };
-            actualizarTodo();
-            alert('✅ Comanda guardada y enviada a cocina');
+            saveDB();
+            alert("Orden enviada");
+            showTab('mesas');
         }
 
-        // Comandas Activas
-        function actualizarComandas() {
-            const container = document.getElementById('ordenesActivas');
-            container.innerHTML = '';
-            comandas.filter(c => c.estado !== 'cerrada').forEach(comanda => {
-                const tiempo = Math.round((new Date() - new Date(comanda.timestamp)) / 60000);
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `
-                    <h4>Mesa ${comanda.mesa} - $${comanda.total.toFixed(2)} (${tiempo}min)</h4>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                        <button class="btn btn-info" onclick="cambiarEstadoComanda('${comanda.id}','preparacion')">En Preparación</button>
-                        <button class="btn btn-success" onclick="cambiarEstadoComanda('${comanda.id}','listo')">Listo</button>
-                        <button class="btn btn-warning" onclick="cambiarEstadoComanda('${comanda.id}','servido')">Servido</button>
-                    </div>
+        // --- COCINA (CHEF FLOW) ---
+        function renderCocina() {
+            const grid = document.getElementById('cocinaGrid');
+            grid.innerHTML = '';
+            
+            // Filtramos solo activas
+            const activas = db.comandas.filter(c => c.estado !== 'entregado' && c.estado !== 'cerrada');
+            
+            if(activas.length === 0) grid.innerHTML = "<p>Todo limpio chef 👨‍🍳</p>";
+
+            activas.forEach(c => {
+                const card = document.createElement('div');
+                card.className = `card ticket-cocina ${c.estado}`;
+                
+                let acciones = '';
+                if(c.estado === 'pendiente') acciones = `<button class="btn btn-primary" onclick="setEstado('${c.id}','fuego')">🔥 A Fuego</button>`;
+                else if(c.estado === 'fuego') acciones = `<button class="btn btn-success" onclick="setEstado('${c.id}','listo')">✅ Listo</button>`;
+                else if(c.estado === 'listo') acciones = `<button class="btn btn-dark" onclick="setEstado('${c.id}','entregado')">🍽️ Entregado</button>`;
+
+                card.innerHTML = `
+                    <h3>Mesa ${c.mesaId} <small>${c.estado.toUpperCase()}</small></h3>
+                    <div class="timer-badge" id="timer-${c.id}">00:00</div>
+                    <hr>
+                    <ul style="margin:10px 0; padding-left:20px;">
+                        ${c.items.filter(i => !i.pagado).map(i => `<li>${i.nombre}</li>`).join('')}
+                    </ul>
+                    ${acciones}
                 `;
-                container.appendChild(div);
+                grid.appendChild(card);
             });
+            updateCocinaTimers();
         }
 
-        function cambiarEstadoComanda(comandaId, nuevoEstado) {
-            const comanda = comandas.find(c => c.id === comandaId);
-            comanda.estado = nuevoEstado;
-            actualizarTodo();
-        }
-
-        // Vista Cocina
-        function actualizarVistaCocina() {
-            const container = document.getElementById('vistaCocina');
-            container.innerHTML = '';
-            const pendientes = comandas.filter(c => ['pendiente','preparacion'].includes(c.estado));
-            
-            pendientes.forEach(comanda => {
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `
-                    <h4>🔥 Mesa ${comanda.mesa} - PENDIENTE (${Math.round((new Date() - new Date(comanda.timestamp))/60000)}min)</h4>
-                    <ul>${comanda.items.map(item => `<li>${item.nombre} x${item.cantidad}</li>`).join('')}</ul>
-                    <button class="btn btn-success" onclick="cambiarEstadoComanda('${comanda.id}','listo')">Marcar Listo ✅</button>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        // Caja
-        function actualizarCaja() {
-            const container = document.getElementById('cajaComandas');
-            container.innerHTML = '';
-            const listas = comandas.filter(c => c.estado === 'servido');
-            
-            listas.forEach(comanda => {
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `
-                    <h4>Mesa ${comanda.mesa} - $${comanda.total.toFixed(2)}</h4>
-                    <div style="display:flex; gap:10px;">
-                        <select id="metodo${comanda.id}">
-                            <option>Efectivo</option>
-                            <option>Tarjeta</option>
-                            <option>Transferencia</option>
-                        </select>
-                        <button class="btn btn-success" onclick="cerrarComanda('${comanda.id}')">Cobrar 💰</button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function cerrarComanda(comandaId) {
-            const comanda = comandas.find(c => c.id === comandaId);
-            const metodo = document.getElementById(`metodo${comandaId}`).value;
-            comanda.metodoPago = metodo;
-            comanda.estado = 'cerrada';
-            const mesa = mesas.find(m => m.id === comanda.mesa);
-            mesa.estado = 'pagada';
-            setTimeout(() => {
-                mesa.estado = 'libre';
-                mesa.comandaId = null;
-            }, 5000);
-            actualizarTodo();
-        }
-
-        // Reportes
-        function actualizarReportes() {
-            const cerradas = comandas.filter(c => c.estado === 'cerrada');
-            const hoy = new Date().toDateString();
-            const delDia = cerradas.filter(c => new Date(c.timestamp).toDateString() === hoy);
-            
-            document.getElementById('totalDia').textContent = `$${delDia.reduce((sum, c) => sum + c.total, 0).toFixed(2)}`;
-            document.getElementById('comandasDia').textContent = delDia.length;
-            document.getElementById('ticketPromedio').textContent = delDia.length ? `$${(delDia.reduce((sum,c)=>sum+c.total,0)/delDia.length).toFixed(2)}` : '$0';
-
-            const tbody = document.querySelector('#transaccionesTabla tbody');
-            tbody.innerHTML = '';
-            delDia.forEach(comanda => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${comanda.id.slice(-6)}</td>
-                    <td>Mesa ${comanda.mesa}</td>
-                    <td>$${comanda.total.toFixed(2)}</td>
-                    <td>${comanda.metodoPago || 'Pendiente'}</td>
-                    <td>${comanda.mesero}</td>
-                    <td>${new Date(comanda.timestamp).toLocaleTimeString()}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // Funciones adicionales
-        function agregarDescuento() {
-            const descuento = prompt('Descuento %:', '10');
-            if (descuento) {
-                comandaActual.descuento = parseFloat(descuento);
-                actualizarResumen();
+        function setEstado(id, estado) {
+            const c = db.comandas.find(x => x.id === id);
+            if(c) {
+                c.estado = estado;
+                if(estado === 'listo') c.listoTime = Date.now();
+                saveDB();
             }
         }
 
-        function dividirCuenta() {
-            if (comandaActual.items.length === 0) return;
-            const personas = parseInt(prompt('Número de personas:', document.getElementById('comensales').value));
-            const totalPersona = comandaActual.total / personas;
-            alert(`Cada persona: $${totalPersona.toFixed(2)}`);
+        function updateCocinaTimers() {
+            db.comandas.forEach(c => {
+                const el = document.getElementById(`timer-${c.id}`);
+                if(el && c.creada) {
+                    const diff = Math.floor((Date.now() - c.creada) / 1000);
+                    const min = Math.floor(diff / 60);
+                    const sec = diff % 60;
+                    el.innerText = `${min}:${sec < 10 ? '0'+sec : sec}`;
+                    if(min > 15) el.classList.add('delayed');
+                }
+            });
         }
 
-        function exportarCSV() {
-            const csv = 'ID,Mesa,Total,Método,Mesero,Fecha
-' + 
-                comandas.filter(c => c.estado === 'cerrada')
-                .map(c => `"${c.id.slice(-6)}",Mesa ${c.mesa},${c.total},${c.metodoPago || ''},"${c.mesero}",${new Date(c.timestamp).toISOString()}`).join('
-');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ventas_${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-        }
-
-        function agregarProductoAdmin() {
-            const nombre = document.getElementById('nuevoProducto').value;
-            const precio = parseFloat(document.getElementById('precioProducto').value);
-            const categoria = document.getElementById('categoriaProducto').value;
-            if (nombre && precio) {
-                menu.push({ id: menu.length + 1, nombre, precio, categoria, stock: true });
-                actualizarMenu();
-                actualizarAdminMenu();
-                document.getElementById('nuevoProducto').value = '';
-                document.getElementById('precioProducto').value = '';
-            }
-        }
-
-        function actualizarAdminMenu() {
-            const container = document.getElementById('adminMenuList');
-            container.innerHTML = '<h4>Menú Actual:</h4><ul>' + 
-                menu.map(p => `<li>${p.nombre} - $${p.precio} ${!p.stock ? '(Sin stock)' : ''}</li>`).join('') + '</ul>';
-        }
-
-        // Event listeners
-        document.getElementById('categoriaFilter').addEventListener('change', actualizarMenu);
-        document.getElementById('busqueda').addEventListener('input', actualizarMenu);
-        document.getElementById('mesaSelect').addEventListener('change', (e) => {
-            if (e.target.value) comandaActual.mesa = parseInt(e.target.value);
-        });
-
-        // Auto-actualización cada 5 segundos
-        setInterval(actualizarTodo, 5000);
-
-        // Inicializar al cargar
-        window.onload = () => {
-            actualizarTodo();
-            document.getElementById('categoriaFilter').innerHTML = '<option value="">Todas</option>' +
-                [...new Set(menu.map(p => p.categoria))].map(cat => `<option value="${cat}">${cat}</option>`).join('');
-        };
-    </script>
-</body>
-</html>
+        // --- CAJA & SPLIT CHECK ---
+        function renderCaja() {
+            const grid = document.getElementById('cajaGrid');
+            grid.innerHTML = '';
+            const porCobrar = db.comandas.filter(c => c.estado !== 'cerrada');
+            
+            porCobrar.forEach(c => {
+                const pendientes = c.items.filter(i => !i.pagado);
+                const total = pendientes.reduce((acc, i) => acc + i.precio, 0);
+                
+                // Si ya no debe nada, botón para cerrar mesa
+                if(total === 0 && c.items.length > 0) {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.style.border = '2px solid green';
+                    card.innerHTML = `<h3>Mesa ${c.mesaId} ✅ Pagado</h3><button class="btn btn-dark" onclick="cerrarMesaCompleta('${c.id}')">Liberar Mesa</button>`;
+                    grid.appendChild(card);
+                    return;
+                }
