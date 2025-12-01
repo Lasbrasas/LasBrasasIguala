@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Las Brasas POS v10.0 Enterprise+</title>
+    <meta name="theme-color" content="#d32f2f">
+    
+    <!-- Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #d32f2f;
+            --primary-dark: #b71c1c;
+            --success: #2e7d32;
+            --warning: #ff9800;
+            --danger: #c62828;
+            --blue: #1976d2;
+            --bg: #f4f6f9;
+            --text-main: #222;
+            --card: #ffffff;
+        }
+
+        body.dark-mode {
+            --bg: #121212;
+            --text-main: #e0e0e0;
+            --card: #1f1f1f;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            padding-bottom: 80px;
+            transition: background 0.25s, color 0.25s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .hidden { display: none !important; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 15px; }
+
+        .card {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: transform 0.1s, opacity 0.1s;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-warning { background: var(--warning); color: #333; }
+        .btn-info { background: #17a2b8; color: #fff; }
+        .btn-dark { background: #343a40; color: #fff; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #ddd;
+            color: var(--text-main);
+        }
+        .btn-outline.selected {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(211,47,47,0.08);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            scrollbar-width: none;
+        }
+        .tab {
+            padding: 10px 18px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            background: var(--card);
+            white-space: nowrap;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .tab.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .mesa {
+            height: 110px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.15);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .mesa.libre {
+            background: linear-gradient(135deg, #66bb6a, #2e7d32);
+        }
+        .mesa.ocupada {
+            background: linear-gradient(135deg, #ef5350, #c62828);
+            animation: pulseMesa 1.8s infinite;
+        }
+        @keyframes pulseMesa {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        .ticket-cocina {
+            border-left: 5px solid #ccc;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        .ticket-cocina.pendiente {
+            border-color: var(--warning);
+            background: #fff8e1;
+        }
+        .ticket-cocina.listo {
+            border-color: var(--success);
+            background: #e8f5e9;
+        }
+
+        .timer-badge {
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: rgba(0,0,0,0.06);
+            padding: 2px 6px;
+            border-radius: 6px;
+            float: right;
+        }
+
+        .stock-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            background: #e8f5e9;
+            color: var(--success);
+        }
+        .stock-low { background: #fff3e0; color: var(--warning); }
+        .stock-out { background: #424242; color: #fff; }
+        .item-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .input-crm {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 0.95rem;
+            background: #fafafa;
+        }
+
+        .cat-pills {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 10px;
+            padding-bottom: 4px;
+        }
+        .cat-pill {
+            padding: 6px 14px;
+            border-radius: 18px;
+            border: 1px solid #ddd;
+            background: var(--card);
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .cat-pill.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        @media (max-width: 900px) {
+            .layout-comanda {
+                display: block;
+            }
+        }
+        @media (min-width: 901px) {
+            .layout-comanda {
+                display: grid;
+                grid-template-columns: 1.4fr 1fr;
+                gap: 15px;
+            }
+        }
+
+        .cart-panel {
+            border: 2px solid var(--primary);
+            position: sticky;
+            top: 10px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        body.dark-mode .stat-card {
+            background: #1f1f1f;
+        }
+        .stat-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(3px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 14px;
+            width: 94%;
+            max-width: 450px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.25s;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Ticket impresión */
+        @media print {
+            body * { visibility: hidden; }
+            #ticket-print, #ticket-print * { visibility: visible; }
+            #ticket-print { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+            @page { margin: 0; size: 80mm auto; }
+        }
+        #ticket-print {
+            display: none;
+            width: 80mm;
+            background: #fff;
+            padding: 8px;
+            font-family: "Courier New", monospace;
+            font-size: 11px;
+            color: #000;
+        }
+        .ticket-line { border-bottom: 1px dashed #000; margin: 4px 0; }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            background: #333;
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 999px;
+            transform: translateX(200%);
+            transition: transform 0.25s;
+            z-index: 3000;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast -->
+    <div id="toast">Notificación</div>
+
+    <!-- Sonido -->
+    <audio id="audio-bell" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <!-- Ticket invisible impresión -->
+    <div id="ticket-print"></div>
+
+    <!-- MODALES EXISTENTES (manual, producto, pin, crm, qr, merma) -->
+    <!-- Producto Manual -->
+    <div id="modalManual" class="modal">
+        <div class="modal-content">
+            <h3>➕ Producto Manual</h3>
+            <p style="color:#666; font-size:0.85rem; margin-bottom:10px;">Para ítems fuera de menú (propinas, extras, etc.).</p>
+            <label>Descripción:</label>
+            <input type="text" id="manNombre" class="input-crm" placeholder="Ej. Propina, Extra, Vaso roto...">
+            <label>Precio ($):</label>
+            <input type="number" id="manPrecio" class="input-crm" placeholder="0.00" step="0.01">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-warning" onclick="document.getElementById('modalManual').style.display='none'">Cancelar</button>
+                <button class="btn btn-success" onclick="confirmarManual()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Producto (modificadores) -->
+    <div id="modalProducto" class="modal">
+        <div class="modal-content">
+            <h3 id="modProdName" style="border-bottom:1px solid #eee; padding-bottom:6px;">Producto</h3>
+            <p style="color:#666; font-size:0.85rem;">Stock: <span id="modProdStock">--</span></p>
+            <div class="options-grid">
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Con Todo')">Con Todo</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Sin Cebolla')">🚫 Cebolla</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Sin Cilantro')">🚫 Cilantro</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Sin Piña')">🚫 Piña</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Salsa Aparte')">🌶️ Salsa Aparte</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Bien Dorado')">🔥 Bien Dorado</button>
+            </div>
+            <label>Nota extra:</label>
+            <input type="text" id="modNota" class="input-crm" placeholder="Ej. Para niño...">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-warning" onclick="cerrarModalProducto()">Cancelar</button>
+                <button class="btn btn-success" onclick="confirmarAgregarProducto()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal PIN -->
+    <div id="modalPin" class="modal">
+        <div class="modal-content" style="text-align:center;">
+            <h3>🔐 Acceso Restringido</h3>
+            <p>Ingresa el PIN de seguridad</p>
+            <input type="password" id="pinInput" maxlength="4"
+                   style="font-size:1.7em; letter-spacing:8px; width:150px; text-align:center; padding:8px; border-radius:8px; border:1px solid #ddd;">
+            <br><br>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <button class="btn btn-dark" onclick="cerrarModalPin()">Cancelar</button>
+                <button class="btn btn-primary" onclick="verificarPin()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal CRM Envío -->
+    <div id="modalEnvio" class="modal">
+        <div class="modal-content">
+            <h3>👤 Datos del Cliente</h3>
+            <p style="color:#666; font-size:0.85rem; margin-bottom:8px;">Teléfono para buscar o registrar.</p>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="tel" id="crmTelefono" class="input-crm" placeholder="Teléfono (10 dígitos)" style="margin-bottom:0;">
+                <button class="btn btn-info" style="width:auto; padding:10px;" onclick="buscarCliente()">🔍</button>
+            </div>
+            <div id="crmCampos" style="opacity:0.5; pointer-events:none; transition:0.3s;">
+                <input type="text" id="envioNombre" class="input-crm" placeholder="Nombre Cliente">
+                <input type="text" id="envioDireccion" class="input-crm" placeholder="Dirección completa">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-warning" onclick="document.getElementById('modalEnvio').style.display='none'">Cancelar</button>
+                <button class="btn btn-success" onclick="confirmarDatosEnvio()">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal QR Mesas (queda por si quieres usar) -->
+    <div id="qrModal" class="modal" onclick="this.style.display='none'">
+        <div class="modal-content" style="text-align:center;" onclick="event.stopPropagation()">
+            <h3>Mesa <span id="qrMesaNum"></span></h3>
+            <div id="qrcode" style="margin:14px auto; display:flex; justify-content:center"></div>
+            <button class="btn btn-warning" onclick="this.parentElement.parentElement.style.display='none'">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal Merma -->
+    <div id="modalMerma" class="modal">
+        <div class="modal-content">
+            <h3 style="color:#d32f2f;">🗑️ Registrar Merma</h3>
+            <p style="color:#666; font-size:0.85rem;">Descuenta stock sin venta.</p>
+            <label>Producto:</label>
+            <select id="mermaProducto" class="input-crm" style="background:#fff;"></select>
+            <label>Cantidad:</label>
+            <input type="number" id="mermaCantidad" class="input-crm" value="1" min="1">
+            <label>Razón:</label>
+            <select id="mermaRazon" class="input-crm" style="background:#fff;">
+                <option>Caducado</option>
+                <option>Accidente</option>
+                <option>Error de cocina</option>
+                <option>Degustación / Cortesía</option>
+            </select>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-warning" onclick="document.getElementById('modalMerma').style.display='none'">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmarMerma()">Registrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div id="appHeader" class="card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px;">
+            <div>
+                <h2 style="margin:0; display:flex; align-items:center; gap:6px; color:var(--primary);">
+                    🔥 Las Brasas <span style="font-size:0.65rem; background:#333; color:#fff; padding:2px 6px; border-radius:4px;">v10.0 Enterprise+</span>
+                </h2>
+                <small style="color:var(--success); font-weight:600;">● Nube Activa</small>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button class="btn btn-outline" style="width:auto; padding:8px 10px;" onclick="toggleDarkMode()">🌙</button>
+                <button id="btnUpdateMenu" class="btn btn-info" style="width:auto; padding:8px 10px; font-size:0.8rem;" onclick="actualizarMenuCompleto()">🔄 Menú + Stock</button>
+                <select id="rolSelect" onchange="solicitarCambioRol()" style="padding:8px; border-radius:8px; border:1px solid #ddd; font-weight:600;">
+                    <option value="mesero">👤 Mesero</option>
+                    <option value="cocina">👨‍🍳 Cocina</option>
+                    <option value="caja">💰 Caja (PIN)</option>
+                    <option value="admin">⚙️ Admin (PIN)</option>
+                    <option value="cliente">📱 Cliente Sim</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs" id="navTabs">
+            <button class="tab active" onclick="verTab('mesas')">📍 Piso</button>
+            <button class="tab" onclick="verTab('comanda')">📝 Pedido</button>
+            <button class="tab" onclick="verTab('cocina')">🔥 Cocina</button>
+            <button class="tab" onclick="verTab('caja')">💰 Caja</button>
+            <button class="tab" onclick="verTab('corte')">📊 Finanzas</button>
+        </div>
+
+        <!-- MESAS -->
+        <div id="view-mesas">
+            <div id="mesasControls" style="display:flex; gap:10px; margin-bottom:14px;">
+                <button class="btn btn-primary" onclick="iniciarOrdenExterna('llevar')">🛍️ Para Llevar</button>
+                <button class="btn btn-warning" onclick="iniciarOrdenExterna('domicilio')">🛵 Domicilio</button>
+            </div>
+            <h3 style="margin-bottom:10px;">Comedor</h3>
+            <div class="grid" id="gridMesas">
+                <p style="grid-column:1/-1; text-align:center; color:#888;">Cargando mesas...</p>
+            </div>
+        </div>
+
+        <!-- COMANDA -->
+        <div id="view-comanda" class="hidden">
+            <div class="layout-comanda">
+                <!-- Menú -->
+                <div>
+                    <div class="cat-pills" id="catFilters"></div>
+                    <div style="display:flex; gap:8px; margin-bottom:10px;">
+                        <input type="text" id="menuSearch" placeholder="🔍 Buscar producto..." onkeyup="filtrarMenu()"
+                               style="flex:1; padding:12px; border-radius:10px; border:1px solid #ddd;">
+                        <button class="btn btn-dark" style="width:auto; padding:0 12px;" onclick="document.getElementById('modalManual').style.display='flex'">➕</button>
+                    </div>
+                    <div class="grid" id="gridMenu">Cargando menú...</div>
+                </div>
+
+                <!-- Carrito -->
+                <div class="card cart-panel">
+                    <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span id="pedidoTitulo">--</span>
+                        <span id="cartTotal" style="font-size:1.3rem; color:var(--primary);">$0.00</span>
+                    </h3>
+                    <small id="pedidoDetalle" style="color:#666; display:block; margin-bottom:8px; font-style:italic;"></small>
+                    <div id="cartItems" style="max-height:220px; overflow-y:auto; background:#f8f9fa; border-radius:8px; padding:8px;">
+                        <p style="text-align:center; color:#999;">Carrito vacío</p>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <button class="btn btn-outline" onclick="limpiarCarrito()">🗑️ Vaciar</button>
+                        <button class="btn btn-success" onclick="enviarPedido()">✅ Enviar a Cocina</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COCINA -->
+        <div id="view-cocina" class="hidden">
+            <div id="cocinaList">Esperando órdenes...</div>
+        </div>
+
+        <!-- CAJA -->
+        <div id="view-caja" class="hidden">
+            <div class="grid" style="grid-template-columns:1fr 1fr; gap:15px; margin-bottom:10px;">
+                <div class="card" style="background:#e3f2fd; border-left:4px solid #1976d2;">
+                    <h3>💰 Por Cobrar</h3>
+                    <div id="listaPorCobrar" style="margin-top:8px;"></div>
+                </div>
+                <div class="card" style="background:#fff3e0; border-left:4px solid #ff9800;">
+                    <h3>🚀 Despacho / Salidas</h3>
+                    <div id="listaSalidas" style="margin-top:8px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CORTE Y ADMIN -->
+        <div id="view-corte" class="hidden">
+            <div class="card" style="margin-bottom:12px; border-left:4px solid #d32f2f;">
+                <h3>🛠️ Administración</h3>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+                    <button class="btn btn-outline" style="color:#d32f2f; border-color:#d32f2f;" onclick="abrirModalMerma()">🗑️ Registrar Merma</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h2>📊 Corte de Caja (Hoy)</h2>
+                    <button class="btn btn-dark" style="width:auto;" onclick="generarCorte()">🔄 Refrescar</button>
+                </div>
+                <div class="grid" style="grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:10px;">
+                    <div class="stat-card">
+                        <small>Total Ventas</small>
+                        <div class="stat-val" id="corteTotal">$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <small>Órdenes</small>
+                        <div class="stat-val" id="corteCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <small>Ticket Prom.</small>
+                        <div class="stat-val" id="cortePromedio">$0.00</div>
+                    </div>
+                    <div class="stat-card" style="background:#ffebee;">
+                        <small>Mermas</small>
+                        <div class="stat-val" style="color:#c62828;" id="corteMermas">$0.00</div>
+                    </div>
+                </div>
+
+                <h3>Desglose por Categoría</h3>
+                <div style="max-height:260px; overflow-y:auto; margin-top:6px;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#eee; text-align:left;">
+                                <th style="padding:6px;">Categoría</th>
+                                <th style="padding:6px;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaDesglose"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FIREBASE CONFIG (tu config real)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6LwVZmFSNVXvJgLF9nHy1Y3bkramhuEA",
+            authDomain: "lasbrasaspos.firebaseapp.com",
+            projectId: "lasbrasaspos",
+            storageBucket: "lasbrasaspos.firebasestorage.app",
+            messagingSenderId: "924369313118",
+            appId: "1:924369313118:web:f124d313b1420f8dd983cf",
+            measurementId: "G-LJC0KQJHEJ"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Estado global
+        let currentOrden = { tipo: 'mesa', id: null, nombre: '', direccion: '', telefono: '' };
+        let carrito = [];
+        let menuCache = [];
+        let pendingRole = null;
+        let itemSeleccionado = null;
+        let audioEnabled = false;
+        let modoCliente = false;
+        let activeCat = 'Todos';
+
+        document.addEventListener('click', () => { audioEnabled = true; }, { once: true });
+
+        function playSound() {
+            if (audioEnabled) {
+                document.getElementById('audio-bell').play().catch(()=>{});
+            }
+        }
+
+        function showToast(msg, type='info') {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            if (type === 'error') t.style.background = '#c62828';
+            else if (type === 'success') t.style.background = '#2e7d32';
+            else if (type === 'warning') t.style.background = '#ff9800';
+            else t.style.background = '#333';
+            t.style.transform = 'translateX(0)';
+            setTimeout(() => t.style.transform = 'translateX(200%)', 2600);
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // LISTENERS tiempo real
+        db.collection("mesas").orderBy("id").onSnapshot((snapshot) => {
+            const el = document.getElementById("gridMesas");
+            el.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const m = doc.data();
+                const div = document.createElement("div");
+                div.className = `mesa ${m.estado}`;
+                div.innerHTML = `<span style="font-size:1.8rem;">${m.id}</span><small>${m.estado.toUpperCase()}</small>`;
+                div.onclick = () => iniciarOrdenMesa(m.id);
+                el.appendChild(div);
+            });
+        });
+
+        // Menú + categorías
+        db.collection("menu").orderBy("nombre").onSnapshot((snapshot) => {
+            menuCache = [];
+            let cats = new Set(['Todos']);
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                menuCache.push({ id: doc.id, ...data });
+                if (data.categoria) cats.add(data.categoria);
+            });
+            renderCategoryPills(Array.from(cats));
+            renderMenuGrid(menuCache);
+        });
+
+        function renderCategoryPills(cats) {
+            const el = document.getElementById('catFilters');
+            el.innerHTML = cats.map(c => `
+                <button class="cat-pill ${c === activeCat ? 'active':''}" onclick="setActiveCat('${c}')">${c}</button>
+            `).join('');
+        }
+
+        function setActiveCat(cat) {
+            activeCat = cat;
+            renderCategoryPills(['Todos', ...new Set(menuCache.map(m => m.categoria).filter(Boolean))]);
+            filtrarMenu();
+        }
+
+        // Comandas
+        db.collection("comandas").where("estado", "!=", "cerrado").onSnapshot((snapshot) => {
+            renderCocina(snapshot);
+            renderCaja(snapshot);
+            snapshot.docChanges().forEach(change => {
+                if (change.type === "added" && change.doc.data().estado === 'pendiente') playSound();
+            });
+        });
+
+        // RENDER MENÚ
+        function getColorCat(cat) {
+            if (cat === 'Tacos') return '#d32f2f';
+            if (cat === 'Bebidas') return '#1976d2';
+            if (cat === 'Gringas') return '#fbc02d';
+            return '#ff9800';
+        }
+
+        function renderMenuGrid(items) {
+            const el = document.getElementById("gridMenu");
+            el.innerHTML = "";
+            if (items.length === 0) {
+                el.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:#999; padding:10px;">Sin productos.</div>`;
+                return;
+            }
+            items.forEach((p) => {
+                // Filtro de categoría y búsqueda se aplica en filtrarMenu()
+                const stock = p.stock !== undefined ? p.stock : 100;
+                const agotado = stock <= 0;
+                const card = document.createElement('div');
+                card.className = `card ${agotado ? 'item-disabled' : ''}`;
+                card.style.position = 'relative';
+                card.style.cursor = 'pointer';
+                card.style.borderLeft = `4px solid ${getColorCat(p.categoria)}`;
+                let stockClass = '';
+                if (agotado) stockClass = 'stock-out';
+                else if (stock < 10) stockClass = 'stock-low';
+
+                card.innerHTML = `
+                    <span class="stock-badge ${stockClass}">${agotado ? 'AGOTADO' : 'Stock: ' + stock}</span>
+                    <b style="font-size:1.05rem;">${p.nombre}</b><br>
+                    <span style="color:var(--primary); font-weight:700;">$${p.precio}</span><br>
+                    <small style="color:#666;">${p.categoria || ''}</small>
+                `;
+                card.onclick = () => abrirModalProducto(p);
+                el.appendChild(card);
+            });
+        }
+
+        function filtrarMenu() {
+            const term = document.getElementById("menuSearch").value.toLowerCase();
+            const list = menuCache.filter(p => {
+                const byCat = (activeCat === 'Todos' || p.categoria === activeCat);
+                const byText = p.nombre.toLowerCase().includes(term) ||
+                               (p.categoria && p.categoria.toLowerCase().includes(term));
+                return byCat && byText;
+            });
+            renderMenuGrid(list);
+        }
+
+        // MODAL PRODUCTO
+        function abrirModalProducto(prod) {
+            itemSeleccionado = { ...prod, notas: [], cantidad: 1 };
+            document.getElementById('modProdName').innerText = prod.nombre;
+            document.getElementById('modProdStock').innerText = prod.stock !== undefined ? prod.stock : '∞';
+            document.getElementById('modNota').value = '';
+            document.querySelectorAll('#modalProducto .btn-outline').forEach(b => b.classList.remove('selected'));
+            document.getElementById('modalProducto').style.display = 'flex';
+        }
+
+        function toggleOption(btn, texto) {
+            btn.classList.toggle('selected');
+            if (btn.classList.contains('selected')) itemSeleccionado.notas.push(texto);
+            else itemSeleccionado.notas = itemSeleccionado.notas.filter(n => n !== texto);
+        }
+
+        function cerrarModalProducto() {
+            document.getElementById('modalProducto').style.display = 'none';
+        }
+
+        function confirmarAgregarProducto() {
+            const extra = document.getElementById('modNota').value.trim();
+            if (extra) itemSeleccionado.notas.push(extra);
+
+            // Cantidad: por ahora cada click = 1, pero agrupamos por nombre + notas
+            const keyNotas = itemSeleccionado.notas.slice().sort().join('|');
+            const found = carrito.find(i => i.id === itemSeleccionado.id &&
+                                            (i.notas.slice().sort().join('|') === keyNotas) &&
+                                            !i.isManual);
+            if (found) {
+                found.cantidad = (found.cantidad || 1) + 1;
+            } else {
+                if (!itemSeleccionado.cantidad) itemSeleccionado.cantidad = 1;
+                carrito.push(itemSeleccionado);
+            }
+            renderCarrito();
+            cerrarModalProducto();
+        }
+
+        // PRODUCTO MANUAL
+        function confirmarManual() {
+            const nombre = document.getElementById('manNombre').value.trim();
+            const precio = parseFloat(document.getElementById('manPrecio').value);
+            if (!nombre || isNaN(precio)) {
+                showToast("Datos incompletos en producto manual", "error");
+                return;
+            }
+            carrito.push({
+                nombre,
+                precio,
+                categoria: 'Manual',
+                notas: ['Manual'],
+                isManual: true,
+                id: 'man_' + Date.now(),
+                cantidad: 1
+            });
+            renderCarrito();
+            document.getElementById('manNombre').value = '';
+            document.getElementById('manPrecio').value = '';
+            document.getElementById('modalManual').style.display = 'none';
+        }
+
+        function renderCarrito() {
+            const el = document.getElementById("cartItems");
+            if (carrito.length === 0) {
+                el.innerHTML = '<p style="text-align:center; color:#999;">Agrega productos</p>';
+                document.getElementById("cartTotal").innerText = "$0.00";
+                return;
+            }
+            el.innerHTML = carrito.map((i, idx) => `
+                <div style="border-bottom:1px solid #eee; padding:5px 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span><b>${i.cantidad || 1}×</b> ${i.nombre}</span>
+                        <span>$${(i.precio * (i.cantidad || 1)).toFixed(2)}
+                            <b style="color:red; cursor:pointer; margin-left:6px;"
+                               onclick="carrito.splice(${idx},1);renderCarrito()">✕</b>
+                        </span>
+                    </div>
+                    ${i.notas && i.notas.length>0 ? `<small style="color:#666; font-style:italic;">${i.notas.join(', ')}</small>` : ''}
+                </div>
+            `).join('');
+
+            const total = carrito.reduce((sum, i) => sum + (parseFloat(i.precio) * (i.cantidad || 1)), 0);
+            document.getElementById("cartTotal").innerText = `$${total.toFixed(2)}`;
+        }
+
+        function limpiarCarrito() {
+            carrito = [];
+            renderCarrito();
+        }
+
+        // ORDENES
+        function iniciarOrdenMesa(id) {
+            currentOrden = { tipo: 'mesa', id, nombre: 'Mesa ' + id, direccion: '', telefono: '' };
+            prepararVistaComanda();
+        }
+
+        function iniciarOrdenExterna(tipo) {
+            currentOrden = { tipo, id: null, nombre: '', direccion: '', telefono: '' };
+            document.getElementById("crmTelefono").value = "";
+            document.getElementById("envioNombre").value = "";
+            document.getElementById("envioDireccion").value = "";
+            document.getElementById("crmCampos").style.opacity = "0.5";
+            document.getElementById("crmCampos").style.pointerEvents = "none";
+            document.getElementById('modalEnvio').style.display = 'flex';
+        }
+
+        function confirmarDatosEnvio() {
+            currentOrden.nombre = document.getElementById('envioNombre').value.trim();
+            currentOrden.direccion = document.getElementById('envioDireccion').value.trim();
+            currentOrden.telefono = document.getElementById('crmTelefono').value.trim();
+            if (!currentOrden.nombre) {
+                showToast("Falta nombre del cliente", "warning");
+                return;
+            }
+            document.getElementById('modalEnvio').style.display = 'none';
+            prepararVistaComanda();
+        }
+
+        function prepararVistaComanda() {
+            carrito = [];
+            renderCarrito();
+            const ico = currentOrden.tipo === 'mesa' ? '🍽️' : (currentOrden.tipo === 'llevar' ? '🛍️' : '🛵');
+            document.getElementById('pedidoTitulo').innerText = `${ico} ${currentOrden.nombre}`;
+            document.getElementById('pedidoDetalle').innerText = currentOrden.direccion || '';
+            verTab('comanda');
+        }
+
+        async function guardarCliente(nombre, direccion, telefono) {
+            const q = await db.collection("clientes").where("telefono", "==", telefono).get();
+            if (q.empty) {
+                await db.collection("clientes").add({ nombre, direccion, telefono, ultimaCompra: new Date() });
+            } else {
+                await q.docs[0].ref.update({ nombre, direccion, ultimaCompra: new Date() });
+            }
+        }
+
+        async function buscarCliente() {
+            const tel = document.getElementById("crmTelefono").value.trim();
+            if (!tel || tel.length < 10) {
+                showToast("Ingresa un teléfono válido", "warning");
+                return;
+            }
+            const q = await db.collection("clientes").where("telefono", "==", tel).get();
+            const campos = document.getElementById("crmCampos");
+            campos.style.opacity = "1";
+            campos.style.pointerEvents = "auto";
+
+            if (!q.empty) {
+                const c = q.docs[0].data();
+                document.getElementById("envioNombre").value = c.nombre || "";
+                document.getElementById("envioDireccion").value = c.direccion || "";
+                campos.style.background = "#e8f5e9";
+                setTimeout(() => campos.style.background = "transparent", 800);
+            } else {
+                document.getElementById("envioNombre").value = "";
+                document.getElementById("envioDireccion").value = "";
+                document.getElementById("envioNombre").focus();
+            }
+        }
+
+        async function enviarPedido() {
+            if (carrito.length === 0) {
+                showToast("Carrito vacío", "error");
+                return;
+            }
+            try {
+                const tel = document.getElementById("crmTelefono").value.trim();
+                const nom = document.getElementById("envioNombre").value.trim();
+                const dir = document.getElementById("envioDireccion").value.trim();
+
+                if (currentOrden.tipo !== 'mesa' && tel) {
+                    await guardarCliente(nom || currentOrden.nombre, dir || currentOrden.direccion, tel);
+                }
+
+                const batch = db.batch();
+                const conteos = {};
+                carrito.forEach(i => {
+                    if (i.id && !i.isManual) {
+                        const cant = i.cantidad || 1;
+                        conteos[i.id] = (conteos[i.id] || 0) + cant;
+                    }
+                });
+
+                for (const [id, qty] of Object.entries(conteos)) {
+                    const ref = db.collection('menu').doc(id);
+                    batch.update(ref, { stock: firebase.firestore.FieldValue.increment(-qty) });
+                }
+
+                const comRef = db.collection("comandas").doc();
+                batch.set(comRef, {
+                    tipo: currentOrden.tipo,
+                    mesaId: currentOrden.tipo === 'mesa' ? currentOrden.id : null,
+                    clienteNombre: currentOrden.nombre,
+                    clienteDireccion: currentOrden.direccion,
+                    clienteTelefono: tel || null,
+                    items: carrito,
+                    estado: "pendiente",
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                if (currentOrden.tipo === 'mesa') {
+                    const mesaQuery = await db.collection("mesas").where("id", "==", currentOrden.id).get();
+                    if (!mesaQuery.empty) batch.update(mesaQuery.docs[0].ref, { estado: "ocupada" });
+                }
+
+                await batch.commit();
+                showToast("✅ Pedido enviado", "success");
+                carrito = [];
+                renderCarrito();
+                if (currentOrden.tipo === 'mesa') verTab('mesas'); else verTab('caja');
+            } catch (e) {
+                showToast("Error al enviar: " + e.message, "error");
+            }
+        }
+
+        // COCINA
+        function getTiempo(timestamp) {
+            if (!timestamp) return '0 min';
+            const diff = Math.floor((Date.now() - timestamp.toDate()) / 1000 / 60);
+            return diff + ' min';
+        }
+
+        function renderCocina(snapshot) {
+            const el = document.getElementById("cocinaList");
+            el.innerHTML = "";
+            let docs = [];
+            snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+            docs.sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+
+            if (docs.length === 0) {
+                el.innerHTML = "<p style='text-align:center; color:#999; padding:20px;'>Todo limpio, Chef 👨‍🍳</p>";
+                return;
+            }
+
+            docs.forEach(c => {
+                if (c.estado === 'enviado' || c.estado === 'entregado') return;
+                const card = document.createElement("div");
+                card.className = `ticket-cocina ${c.estado}`;
+                const icono = c.tipo === 'mesa' ? '🍽️' : (c.tipo === 'llevar' ? '🛍️' : '🛵');
+                const titulo = c.tipo === 'mesa' ? 'Mesa ' + c.mesaId : c.clienteNombre || c.tipo.toUpperCase();
+                const tiempo = getTiempo(c.timestamp);
+
+                let btn = "";
+                if (c.estado === 'pendiente') btn = `<button class="btn btn-primary" onclick="cambiarEstado('${c.id}','listo')">🔥 A Fuego</button>`;
+                else if (c.estado === 'listo') btn = `<button class="btn btn-success" onclick="cambiarEstado('${c.id}','despacho')">✅ Terminar</button>`;
+
+                card.innerHTML = `
+                    <h3>${icono} ${titulo} <span class="timer-badge">${tiempo}</span></h3>
+                    ${c.clienteDireccion ? `<small>📍 ${c.clienteDireccion}</small>` : ''}
+                    <hr style="margin:6px 0; border:none; border-top:1px dashed #ccc;">
+                    <ul style="padding-left:18px; margin:0;">
+                        ${c.items.map(i => `
+                            <li style="margin-bottom:4px;">
+                                <b>${i.cantidad || 1}</b> ${i.nombre}
+                                ${i.notas && i.notas.length>0 ? `<br><small style="background:#fff3cd; padding:1px 3px;">${i.notas.join(', ')}</small>` : ''}
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <div style="margin-top:6px;">${btn}</div>
+                `;
+                el.appendChild(card);
+            });
+        }
+
+        // CAJA
+        function renderCaja(snapshot) {
+            const listaCobrar = document.getElementById("listaPorCobrar");
+            const listaSalidas = document.getElementById("listaSalidas");
+            listaCobrar.innerHTML = "";
+            listaSalidas.innerHTML = "";
+
+            snapshot.forEach(doc => {
+                const c = doc.data();
+                const total = c.items.reduce((sum, i) => sum + (i.precio * (i.cantidad || 1)), 0);
+                const baseNombre = c.tipo === 'mesa' ? 'Mesa ' + c.mesaId : (c.clienteNombre || c.tipo.toUpperCase());
+
+                // Por cobrar (cualquier estado antes de cerrado)
+                const div = document.createElement("div");
+                div.style.borderBottom = "1px solid #ddd";
+                div.style.padding = "8px 4px";
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between;">
+                        <b>${baseNombre}</b>
+                        <b style="color:var(--primary)">$${total.toFixed(2)}</b>
+                    </div>
+                    <small style="color:#666;">${c.estado.toUpperCase()} • ${c.items.length} items</small>
+                    <div style="display:flex; gap:5px; margin-top:5px;">
+                        <button class="btn btn-dark" style="padding:4px 6px; font-size:0.75rem; width:auto;" onclick="imprimirTicket('${doc.id}')">🖨️</button>
+                        ${c.estado !== 'cerrado' ? `<button class="btn btn-success" style="padding:4px 8px; font-size:0.75rem;" onclick="cambiarEstado('${doc.id}','cerrado')">💰 Cobrar</button>` : ''}
+                    </div>
+                `;
+                listaCobrar.appendChild(div);
+
+                // Salidas
+                if ((c.tipo === 'domicilio' || c.tipo === 'llevar') && c.estado !== 'pendiente') {
+                    const d2 = document.createElement("div");
+                    d2.style.borderBottom = "1px solid #ddd";
+                    d2.style.padding = "8px 4px";
+                    let btnSalida = "";
+                    if (c.estado === 'despacho' || c.estado === 'listo') btnSalida = `<button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" onclick="cambiarEstado('${doc.id}','enviado')">🛵 Enviar</button>`;
+                    else if (c.estado === 'enviado') btnSalida = `<button class="btn btn-success" style="padding:4px 8px; font-size:0.75rem;" onclick="cambiarEstado('${doc.id}','entregado')">✅ Entregado</button>`;
+                    else btnSalida = `<span style="color:green; font-weight:600;">Completado</span>`;
+                    d2.innerHTML = `
+                        <b>${c.clienteNombre || 'Cliente'}</b><br>
+                        <small>${c.clienteDireccion || 'Para llevar'}</small><br>
+                        ${btnSalida}
+                    `;
+                    listaSalidas.appendChild(d2);
+                }
+            });
+        }
+
+        function cambiarEstado(docId, estado) {
+            db.collection("comandas").doc(docId).update({ estado: estado });
+            if (estado === 'cerrado') {
+                db.collection("comandas").doc(docId).get().then(doc => {
+                    const d = doc.data();
+                    if (d.tipo === 'mesa') {
+                        db.collection("mesas").where("id", "==", d.mesaId).get()
+                          .then(q => { if (!q.empty) q.docs[0].ref.update({ estado: "libre" }); });
+                    }
+                });
+            }
+        }
+
+        // CORTE
+        async function generarCorte() {
+            const hoy = new Date();
+            hoy.setHours(0,0,0,0);
+
+            const ventasSnap = await db.collection("comandas")
+                .where("estado", "==", "cerrado")
+                .get();
+
+            let total = 0;
+            let count = 0;
+            let categorias = {};
+
+            ventasSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.timestamp && data.timestamp.toDate() >= hoy) {
+                    count++;
+                    data.items.forEach(i => {
+                        const monto = i.precio * (i.cantidad || 1);
+                        total += monto;
+                        const cat = i.categoria || 'Otros';
+                        categorias[cat] = (categorias[cat] || 0) + monto;
+                    });
+                }
+            });
+
+            const mermasSnap = await db.collection("mermas").get();
+            let totalMermas = 0;
+            mermasSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.fecha && data.fecha.toDate() >= hoy) {
+                    totalMermas += (data.costoEstimado || 0);
+                }
+            });
+
+            document.getElementById("corteTotal").innerText = `$${total.toFixed(2)}`;
+            document.getElementById("corteCount").innerText = count;
+            document.getElementById("cortePromedio").innerText = count ? `$${(total/count).toFixed(2)}` : '$0.00';
+            document.getElementById("corteMermas").innerText = `$${totalMermas.toFixed(2)}`;
+
+            const tbody = document.getElementById("tablaDesglose");
+            tbody.innerHTML = Object.keys(categorias).map(cat => `
+                <tr>
+                    <td style="padding:4px 6px; border-bottom:1px solid #eee;">${cat}</td>
+                    <td style="padding:4px 6px; border-bottom:1px solid #eee;">$${categorias[cat].toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // MERMAS
+        function abrirModalMerma() {
+            const sel = document.getElementById("mermaProducto");
+            sel.innerHTML = menuCache.map(p => `<option value="${p.id}">${p.nombre} (Stock: ${p.stock})</option>`).join('');
+            document.getElementById("modalMerma").style.display = 'flex';
+        }
+
+        async function confirmarMerma() {
+            const prodId = document.getElementById("mermaProducto").value;
+            const cantidad = parseInt(document.getElementById("mermaCantidad").value);
+            const razon = document.getElementById("mermaRazon").value;
+            const prod = menuCache.find(p => p.id === prodId);
+            if (!prod || cantidad <= 0) {
+                showToast("Datos de merma inválidos", "error");
+                return;
+            }
+
+            const batch = db.batch();
+            const prodRef = db.collection("menu").doc(prodId);
+            batch.update(prodRef, { stock: firebase.firestore.FieldValue.increment(-cantidad) });
+
+            const mermaRef = db.collection("mermas").doc();
+            batch.set(mermaRef, {
+                producto: prod.nombre,
+                cantidad: cantidad,
+                costoEstimado: prod.precio * cantidad,
+                razon: razon,
+                fecha: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await batch.commit();
+            showToast("Merma registrada", "success");
+            document.getElementById("modalMerma").style.display = 'none';
+        }
+
+        // SEGURIDAD PIN / ROLES
+        function solicitarCambioRol() {
+            const nuevoRol = document.getElementById("rolSelect").value;
+            if (nuevoRol === 'caja' || nuevoRol === 'admin') {
+                pendingRole = nuevoRol;
+                document.getElementById("rolSelect").value = 'mesero';
+                document.getElementById("modalPin").style.display = 'flex';
+                document.getElementById("pinInput").value = '';
+                document.getElementById("pinInput").focus();
+            } else if (nuevoRol === 'cliente') {
+                activarModoCliente();
+            } else {
+                aplicarRol(nuevoRol);
+            }
+        }
+
+        function verificarPin() {
+            const pin = document.getElementById("pinInput").value;
+            if (pin === '1234') {
+                aplicarRol(pendingRole);
+                document.getElementById("rolSelect").value = pendingRole;
+                cerrarModalPin();
+            } else {
+                showToast("PIN incorrecto", "error");
+            }
+        }
+
+        function aplicarRol(rol) {
+            if (rol === 'cocina') verTab('cocina');
+            else if (rol === 'caja') verTab('caja');
+            else if (rol === 'admin') verTab('corte');
+            else verTab('mesas');
+        }
+
+        function cerrarModalPin() {
+            document.getElementById("modalPin").style.display = 'none';
+        }
+
+        function activarModoCliente() {
+            modoCliente = true;
+            document.getElementById('rolSelect').style.display = 'none';
+            document.getElementById('btnUpdateMenu').style.display = 'none';
+            document.getElementById('navTabs').style.display = 'none';
+            document.getElementById('mesasControls').style.display = 'none';
+            verTab('mesas');
+        }
+
+        // TABS
+        function verTab(id) {
+            document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden'));
+            document.getElementById(`view-${id}`).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const map = { 'mesas':0, 'comanda':1, 'cocina':2, 'caja':3, 'corte':4 };
+            if (map[id] !== undefined) document.querySelectorAll('.tab')[map[id]].classList.add('active');
+        }
+
+        // IMPRESIÓN TICKET
+        async function imprimirTicket(docId) {
+            const doc = await db.collection("comandas").doc(docId).get();
+            const d = doc.data();
+            const total = d.items.reduce((acc, i) => acc + i.precio * (i.cantidad || 1), 0);
+            const itemsHtml = d.items.map(i => `
+                <div style="display:flex; justify-content:space-between;">
+                    <span>${i.cantidad || 1} ${i.nombre}</span>
+                    <span>$${(i.precio * (i.cantidad || 1)).toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            const tipoLabel = d.tipo.toUpperCase();
+            const nombre = d.tipo === 'mesa' ? d.mesaId : (d.clienteNombre || '');
+
+            document.getElementById('ticket-print').innerHTML = `
+                <div style="text-align:center;">
+                    <h3>LAS BRASAS</h3>
+                    <small>FOLIO: ${doc.id.slice(-6).toUpperCase()}</small>
+                </div>
+                <div class="ticket-line"></div>
+                <div>
+                    <small>${tipoLabel}: ${nombre}</small>
+                </div>
+                <div class="ticket-line"></div>
+                ${itemsHtml}
+                <div class="ticket-line"></div>
+                <div style="text-align:right;"><b>TOTAL: $${total.toFixed(2)}</b></div>
+            `;
+            window.print();
+        }
+
+        // ADMIN MENÚ BASE
+        async function actualizarMenuCompleto() {
+            if (!confirm("⚠️ Se borrará el menú actual y se cargará un menú base con STOCK. ¿Continuar?")) return;
+            const batch = db.batch();
+            const snap = await db.collection("menu").get();
+            snap.forEach(d => batch.delete(d.ref));
+
+            const nuevoMenu = [
+                { nombre: "Taco Al Carbón", precio: 40, categoria: "Tacos", stock: 100 },
+                { nombre: "Taco Bistec", precio: 50, categoria: "Tacos", stock: 80 },
+                { nombre: "Taco Cecina", precio: 50, categoria: "Tacos", stock: 80 },
+                { nombre: "Taco Arrachera", precio: 60, categoria: "Tacos", stock: 50 },
+                { nombre: "Gringa Pastor", precio: 30, categoria: "Gringas", stock: 50 },
+                { nombre: "Gringa Doble", precio: 55, categoria: "Gringas", stock: 50 },
+                { nombre: "Refresco", precio: 25, categoria: "Bebidas", stock: 200 },
+                { nombre: "Cerveza", precio: 40, categoria: "Bebidas", stock: 200 }
+            ];
+            nuevoMenu.forEach(i => batch.set(db.collection("menu").doc(), i));
+            await batch.commit();
+            showToast("Menú y stock actualizados", "success");
+        }
+
+        // AUTO-LOGIN CLIENTE POR URL ?mesa=X
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('mesa')) {
+                activarModoCliente();
+                iniciarOrdenMesa(parseInt(params.get('mesa')));
+            }
+        };
+    </script>
+</body>
+</html>
