@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Las Brasas POS v9.2 - Ultimate</title>
+    <meta name="theme-color" content="#d32f2f">
+    
+    <!-- Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* --- ESTILOS MODERNOS (Fusión v8.1 + v9) --- */
+        :root { 
+            --primary: #d32f2f; 
+            --primary-dark: #b71c1c;
+            --accent: #ffc107;
+            --bg: #f4f6f9; 
+            --dark-bg: #121212; 
+            --text-main: #222;
+            --text-soft: #666;
+            --success: #2e7d32;
+            --danger: #c62828;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif; 
+            background: var(--bg); 
+            color: var(--text-main); 
+            padding-bottom: 80px; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        .hidden { display: none !important; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 10px; }
+        
+        /* APP SHELL (DISEÑO v8.1) */
+        .app-header {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .brand-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge-cloud {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 99px;
+            background: rgba(46, 125, 50, 0.1);
+            color: var(--success);
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; display: inline-block; }
+
+        /* GRID SISTEMA */
+        .grid { display: grid; gap: 10px; }
+        .grid-mesas { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+        .grid-menu { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+        
+        /* TARJETAS */
+        .card { 
+            background: white; 
+            padding: 12px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04); 
+            border: 1px solid rgba(0,0,0,0.03);
+            transition: transform 0.15s ease;
+        }
+        
+        /* BOTONES */
+        .btn { 
+            padding: 10px 16px; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: inline-flex; justify-content: center; align-items: center; gap: 5px;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--accent); color: #333; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-dark { background: #343a40; color: white; }
+        .btn-ghost { background: #f5f5f5; color: var(--text-soft); }
+        .btn-outline { background: transparent; border: 1px solid #ddd; color: var(--text-main); }
+        .btn-outline.selected { border-color: var(--primary); color: var(--primary); background: #fff5f5; }
+
+        /* TABS */
+        .tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; scrollbar-width: none; }
+        .tab { 
+            padding: 8px 16px; 
+            border: none; 
+            background: white; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            white-space: nowrap; 
+            font-weight: 600; 
+            color: var(--text-soft); 
+            border: 1px solid #eee;
+            transition: all 0.2s;
+        }
+        .tab.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(211, 47, 47, 0.2); }
+
+        /* CATEGORÍAS (PILLS) */
+        .cat-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; scrollbar-width: none; }
+        .cat-pill { 
+            padding: 6px 12px; 
+            border-radius: 15px; 
+            background: #fff; 
+            border: 1px solid #eee; 
+            color: #555; 
+            font-size: 0.85rem; 
+            white-space: nowrap; 
+            cursor: pointer;
+        }
+        .cat-pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* MESAS */
+        .mesa { 
+            height: 90px; 
+            border-radius: 12px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            color: white; 
+            font-weight: 700; 
+            cursor: pointer; 
+            position: relative; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .mesa.libre { background: linear-gradient(135deg, #4caf50, #2e7d32); }
+        .mesa.ocupada { background: linear-gradient(135deg, #ef5350, #c62828); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+
+        /* PRODUCTO CARD MEJORADO (v8.1 Style) */
+        .product-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-left: 4px solid transparent;
+        }
+        .product-name { font-weight: 600; font-size: 0.95rem; }
+        .product-price { color: var(--primary); font-weight: 700; }
+        .product-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-soft); }
+        
+        .stock-badge { 
+            font-size: 0.7rem; 
+            padding: 2px 6px; 
+            border-radius: 99px; 
+            font-weight: 700;
+        }
+        .stock-normal { background: #e8f5e9; color: var(--success); }
+        .stock-low { background: #fff3cd; color: #856404; }
+        .stock-out { background: #ffebee; color: #c62828; }
+        .item-disabled { opacity: 0.6; filter: grayscale(1); pointer-events: none; }
+
+        /* COCINA TICKET */
+        .ticket-cocina { border-left: 5px solid #ccc; position: relative; }
+        .ticket-cocina.pendiente { border-color: var(--accent); background: #fff8e1; }
+        .ticket-cocina.listo { border-color: var(--success); background: #e8f5e9; }
+        .timer-badge { font-family: monospace; font-weight: bold; font-size: 0.85rem; padding: 2px 6px; background: rgba(0,0,0,0.05); border-radius: 4px; float: right; }
+
+        /* INPUTS CRM */
+        .input-crm { width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; outline: none; }
+        .input-crm:focus { border-color: var(--primary); }
+
+        /* MODALES */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 20px; border-radius: 16px; width: 95%; max-width: 450px; max-height: 90vh; overflow-y: auto; animation: popIn 0.2s; }
+        @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* LAYOUT DE COMANDA (2 COLUMNAS EN PC) */
+        .view-two-cols { display: grid; grid-template-columns: 2fr 1.3fr; gap: 10px; }
+        @media (max-width: 820px) { .view-two-cols { grid-template-columns: 1fr; } }
+
+        /* CARRITO */
+        .cart-item { padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 0.9rem; }
+        .cart-item-mods { font-size: 0.75rem; color: var(--text-soft); margin-top: 2px; font-style: italic; }
+
+        /* IMPRESIÓN */
+        @media print {
+            body * { visibility: hidden; }
+            #ticket-print, #ticket-print * { visibility: visible; }
+            #ticket-print { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+            @page { margin: 0; size: 80mm auto; }
+        }
+        #ticket-print { display: none; width: 80mm; background: white; padding: 10px; font-family: 'Courier New', monospace; font-size: 12px; color: black; }
+        .ticket-line { border-bottom: 1px dashed #000; margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+    <audio id="audio-bell" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+    <div id="ticket-print"></div>
+
+    <!-- 1. Modal Manual -->
+    <div id="modalManual" class="modal">
+        <div class="modal-content">
+            <h3>➕ Producto Manual</h3>
+            <p style="font-size:0.9em; color:#666; margin-bottom:10px;">Para ítems no registrados.</p>
+            <input type="text" id="manNombre" placeholder="Descripción (ej. Propina)" class="input-crm">
+            <input type="number" id="manPrecio" placeholder="Precio ($)" class="input-crm">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modalManual').style.display='none'">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1" onclick="confirmarManual()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal Modificadores -->
+    <div id="modalProducto" class="modal">
+        <div class="modal-content">
+            <h3 id="modProdName" style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom:8px;">Producto</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9em; color: #666;">
+                <span>Disponibilidad:</span>
+                <span id="modProdStock" style="font-weight:bold; color:var(--success);">--</span>
+            </div>
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px;">
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Con Todo')">Con Todo</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Sin Cebolla')">🚫 Cebolla</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Sin Cilantro')">🚫 Cilantro</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Sin Piña')">🚫 Piña</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Salsa Aparte')">🌶️ Salsa Aparte</button>
+                <button class="btn btn-outline" onclick="toggleOption(this, 'Bien Dorado')">🔥 Bien Dorado</button>
+            </div>
+            <input type="text" id="modNota" class="input-crm" placeholder="Nota extra...">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="cerrarModalProducto()">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1" onclick="confirmarAgregarProducto()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal PIN -->
+    <div id="modalPin" class="modal">
+        <div class="modal-content" style="text-align:center;">
+            <h3>🔐 Acceso Restringido</h3>
+            <p style="color:#666; font-size:0.9em; margin-bottom:15px;">Ingresa el PIN de seguridad</p>
+            <input type="password" id="pinInput" style="font-size:2em; letter-spacing:10px; width:150px; text-align:center; padding:10px; border:2px solid #ddd; border-radius:12px; margin:0 auto 20px auto; display:block;" maxlength="4">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn btn-ghost" onclick="cerrarModalPin()">Cancelar</button>
+                <button class="btn btn-dark" onclick="verificarPin()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Modal CRM (v9 Lógica) -->
+    <div id="modalEnvio" class="modal">
+        <div class="modal-content">
+            <h3>👤 Datos del Cliente</h3>
+            <p style="color:#666; font-size:0.9em; margin-bottom:15px;">Busca por teléfono para autocompletar.</p>
+            
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input type="tel" id="crmTelefono" placeholder="Teléfono (10 dígitos)" class="input-crm" style="margin-bottom:0;">
+                <button class="btn btn-info" style="width:auto; margin:0;" onclick="buscarCliente()">🔍</button>
+            </div>
+            <div id="crmCampos" style="opacity:0.6; pointer-events:none; transition:0.3s;">
+                <input type="text" id="envioNombre" placeholder="Nombre Cliente" class="input-crm">
+                <input type="text" id="envioDireccion" placeholder="Dirección Completa" class="input-crm">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modalEnvio').style.display='none'">Cancelar</button>
+                <button class="btn btn-success" style="flex:1" onclick="confirmarDatosEnvio()">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Modal QR -->
+    <div id="qrModal" class="modal" onclick="this.style.display='none'">
+        <div class="modal-content" style="text-align:center;" onclick="event.stopPropagation()">
+            <h3>Mesa <span id="qrMesaNum"></span></h3>
+            <div id="qrcode" style="margin:20px auto; display:flex; justify-content:center"></div>
+            <button class="btn btn-ghost" onclick="this.parentElement.parentElement.style.display='none'">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- 6. Modal Mermas (v9 Lógica) -->
+    <div id="modalMerma" class="modal">
+        <div class="modal-content">
+            <h3 style="color:var(--danger);">🗑️ Registrar Merma</h3>
+            <p style="color:#666; font-size:0.9em; margin-bottom:15px;">Descuenta stock sin venta.</p>
+            <label style="font-size:0.9em; font-weight:bold;">Producto:</label>
+            <select id="mermaProducto" class="input-crm" style="background:white;"></select>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div>
+                    <label style="font-size:0.9em; font-weight:bold;">Cant:</label>
+                    <input type="number" id="mermaCantidad" value="1" min="1" class="input-crm">
+                </div>
+                <div>
+                    <label style="font-size:0.9em; font-weight:bold;">Razón:</label>
+                    <select id="mermaRazon" class="input-crm" style="background:white;">
+                        <option>Caducado</option>
+                        <option>Accidente</option>
+                        <option>Error</option>
+                        <option>Degustación</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modalMerma').style.display='none'">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1; background:var(--danger);" onclick="confirmarMerma()">Registrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP PRINCIPAL -->
+    <div class="container">
+        
+        <!-- HEADER (v8.1 Style) -->
+        <header class="app-header" id="appHeader">
+            <div class="brand-title">
+                <span>🔥 Las Brasas</span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <span class="badge-cloud"><span class="dot"></span> Online</span>
+                <button id="btnUpdateMenu" class="btn btn-ghost btn-sm" onclick="actualizarMenuCompleto()">🔄 Menú</button>
+                <select id="rolSelect" onchange="solicitarCambioRol()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; font-weight:bold; background: #f8f9fa;">
+                    <option value="mesero">👤 Mesero</option>
+                    <option value="cocina">👨‍🍳 Cocina</option>
+                    <option value="caja">💰 Caja 🔒</option>
+                    <option value="admin">⚙️ Admin 🔒</option>
+                    <option value="cliente">📱 Cliente</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- NAVEGACIÓN -->
+        <div class="tabs" id="navTabs">
+            <button class="tab active" onclick="verTab('mesas')">📍 Piso</button>
+            <button class="tab" onclick="verTab('comanda')">📝 Pedido</button>
+            <button class="tab" onclick="verTab('cocina')">🔥 Cocina</button>
+            <button class="tab" onclick="verTab('caja')">💰 Caja</button>
+            <button class="tab" onclick="verTab('corte')">📊 Finanzas</button>
+        </div>
+
+        <!-- VISTAS -->
+        
+        <!-- MESAS -->
+        <div id="view-mesas">
+            <div id="mesasControls" style="margin-bottom: 15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn btn-primary" style="background:#e83e8c; border:none;" onclick="iniciarOrdenExterna('llevar')">🛍️ Para Llevar</button>
+                <button class="btn btn-warning" style="background:#fd7e14; color:white; border:none;" onclick="iniciarOrdenExterna('domicilio')">🛵 Domicilio</button>
+            </div>
+            <h4 style="margin-bottom:10px; color:var(--text-soft); font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Comedor</h4>
+            <div class="grid grid-mesas" id="gridMesas">
+                <p style="text-align:center; color:#999; grid-column:1/-1;">Cargando mesas...</p>
+            </div>
+        </div>
+
+        <!-- COMANDA (LAYOUT MEJORADO v8.1) -->
+        <div id="view-comanda" class="hidden">
+            <div class="view-two-cols" style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                <!-- En móvil es 1 col, en PC se puede ajustar -->
+                <style>@media(min-width:768px){ .view-two-cols{ grid-template-columns: 1.5fr 1fr !important; } }</style>
+
+                <!-- Columna Izquierda: Menú -->
+                <div>
+                    <div class="cat-scroll" id="catFilters"></div> <!-- Pills de Categoría -->
+                    
+                    <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                        <input type="text" id="menuSearch" placeholder="🔍 Buscar..." onkeyup="filtrarMenu()" style="flex:1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        <button class="btn btn-dark" style="width:auto; margin:0;" onclick="document.getElementById('modalManual').style.display='flex'">➕</button>
+                    </div>
+                    <div class="grid grid-menu" id="gridMenu"></div>
+                </div>
+
+                <!-- Columna Derecha: Resumen (Sticky) -->
+                <div>
+                    <div class="card" style="border: 2px solid var(--primary); position: sticky; top: 10px; z-index: 10;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <h3 style="margin:0; font-size:1.1rem;" id="pedidoTitulo">--</h3>
+                            <span id="cartTotal" style="color:var(--primary); font-weight:800; font-size:1.2rem;">$0.00</span>
+                        </div>
+                        <small id="pedidoDetalle" style="color:#666; display:block; margin-bottom:10px; font-style:italic; font-size:0.8rem;"></small>
+                        
+                        <div id="cartItems" style="margin:10px 0; max-height:300px; overflow-y:auto; background:#f8f9fa; padding:10px; border-radius:8px; min-height:60px;">
+                            <p style="color:#999; text-align:center; font-size:0.9rem; padding-top:15px;">Carrito vacío</p>
+                        </div>
+                        
+                        <button class="btn btn-success" style="width:100%;" onclick="enviarPedido()">✅ CONFIRMAR PEDIDO</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COCINA -->
+        <div id="view-cocina" class="hidden">
+            <div id="cocinaList" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));"></div>
+        </div>
+
+        <!-- CAJA -->
+        <div id="view-caja" class="hidden">
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
+                <div class="card" style="background:#e3f2fd; border: 1px solid #bbdefb;">
+                    <h3 style="color:#1565c0; margin-bottom:10px;">💰 Por Cobrar</h3>
+                    <div id="listaPorCobrar"></div>
+                </div>
+                <div class="card" style="background:#fff3e0; border: 1px solid #ffe0b2;">
+                    <h3 style="color:#e65100; margin-bottom:10px;">🚀 Despacho / Salidas</h3>
+                    <div id="listaSalidas"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FINANZAS / ADMIN -->
+        <div id="view-corte" class="hidden">
+            <div class="card" style="margin-bottom:15px; border-left: 5px solid var(--primary);">
+                <h3>🛠️ Admin Tools</h3>
+                <div style="margin-top:10px;">
+                    <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger); width:auto; font-size:0.8rem;" onclick="abrirModalMerma()">🗑️ Registrar Merma</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2>📊 Corte del Día</h2>
+                    <button class="btn btn-dark btn-sm" onclick="generarCorte()">Refrescar</button>
+                </div>
+                
+                <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:20px;">
+                    <div style="text-align:center; background:#f8f9fa; padding:10px; border-radius:8px;">
+                        <small style="color:#666;">Venta Total</small>
+                        <div style="font-size:1.4rem; font-weight:800; color:var(--success);" id="corteTotal">$0.00</div>
+                    </div>
+                    <div style="text-align:center; background:#f8f9fa; padding:10px; border-radius:8px;">
+                        <small style="color:#666;">Órdenes</small>
+                        <div style="font-size:1.4rem; font-weight:800;" id="corteCount">0</div>
+                    </div>
+                    <div style="text-align:center; background:#ffebee; padding:10px; border-radius:8px;">
+                        <small style="color:var(--danger);">Mermas</small>
+                        <div style="font-size:1.4rem; font-weight:800; color:var(--danger);" id="corteMermas">$0.00</div>
+                    </div>
+                </div>
+
+                <h3>Desglose Categorías</h3>
+                <div style="max-height:300px; overflow-y:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.9rem; margin-top:5px;">
+                        <thead style="background:#f5f5f5;"><tr><th style="padding:8px; text-align:left;">Cat</th><th style="padding:8px; text-align:right;">Total</th></tr></thead>
+                        <tbody id="tablaDesglose"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6LwVZmFSNVXvJgLF9nHy1Y3bkramhuEA",
+            authDomain: "lasbrasaspos.firebaseapp.com",
+            projectId: "lasbrasaspos",
+            storageBucket: "lasbrasaspos.firebasestorage.app",
+            messagingSenderId: "924369313118",
+            appId: "1:924369313118:web:f124d313b1420f8dd983cf",
+            measurementId: "G-LJC0KQJHEJ"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- ESTADO ---
+        let currentOrden = { tipo: 'mesa', id: null, nombre: '', direccion: '', telefono: '' };
+        let carrito = [];
+        let menuCache = [];
+        let activeCategory = 'Todos'; // FILTRO DE CATEGORÍAS (v8.1)
+        let pendingRole = null;
+        let itemSeleccionado = null; 
+        let audioEnabled = false;
+        let modoCliente = false; 
+
+        document.addEventListener('click', () => { audioEnabled = true; }, { once: true });
+
+        // --- SONIDO ---
+        function playSound() {
+            if(audioEnabled) document.getElementById('audio-bell').play().catch(e => console.log(e));
+        }
+
+        // --- LISTENERS ---
+        db.collection("mesas").orderBy("id").onSnapshot(snap => {
+            const el = document.getElementById("gridMesas");
+            el.innerHTML = "";
+            snap.forEach(doc => {
+                const m = doc.data();
+                const div = document.createElement("div");
+                div.className = `mesa ${m.estado}`;
+                div.innerHTML = `<span style="font-size:1.8em">${m.id}</span><small style="font-size:0.7em; text-transform:uppercase;">${m.estado}</small>`;
+                if (!modoCliente) div.innerHTML += `<span style="position:absolute; top:5px; right:5px; font-size:1.2em; opacity:0.8;" onclick="event.stopPropagation(); showQR(${m.id})">📱</span>`;
+                div.onclick = () => iniciarOrdenMesa(m.id);
+                el.appendChild(div);
+            });
+        });
+
+        db.collection("menu").orderBy("nombre").onSnapshot(snap => {
+            menuCache = [];
+            let cats = new Set(['Todos']);
+            snap.forEach(doc => {
+                const d = doc.data();
+                menuCache.push({ id: doc.id, ...d });
+                if(d.categoria) cats.add(d.categoria);
+            });
+            renderCategories(Array.from(cats));
+            renderMenuGrid();
+        });
+
+        db.collection("comandas").where("estado", "!=", "cerrado").onSnapshot(snap => {
+            renderCocina(snap);
+            renderCaja(snap);
+            snap.docChanges().forEach(change => {
+                if (change.type === "added" && change.doc.data().estado === 'pendiente') playSound();
+            });
+        });
+
+        // --- UI LOGIC (v8.1 STYLE) ---
+
+        function renderCategories(cats) {
+            const el = document.getElementById('catFilters');
+            el.innerHTML = cats.map(c => 
+                `<button class="cat-pill ${c === activeCategory ? 'active' : ''}" onclick="selectCategory('${c}')">${c}</button>`
+            ).join('');
+        }
+
+        function selectCategory(cat) {
+            activeCategory = cat;
+            renderCategories(Array.from(new Set(['Todos', ...menuCache.map(p=>p.categoria)])));
+            renderMenuGrid();
+        }
+
+        function renderMenuGrid() {
+            const el = document.getElementById("gridMenu");
+            el.innerHTML = "";
+            const term = document.getElementById("menuSearch").value.toLowerCase();
+            
+            const filtered = menuCache.filter(p => {
+                const matchText = p.nombre.toLowerCase().includes(term);
+                const matchCat = activeCategory === 'Todos' || p.categoria === activeCategory;
+                return matchText && matchCat;
+            });
+
+            if(filtered.length === 0) {
+                el.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">Sin resultados</p>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const stock = p.stock !== undefined ? p.stock : 100;
+                const agotado = stock <= 0;
+                const btn = document.createElement("div");
+                btn.className = `card product-card ${agotado ? 'item-disabled' : ''}`;
+                btn.style.cursor = "pointer";
+                btn.style.borderLeftColor = getColorCat(p.categoria);
+                
+                let stockClass = stock < 10 ? 'stock-low' : 'stock-normal';
+                if(agotado) stockClass = 'stock-out';
+
+                btn.innerHTML = `
+                    <div class="product-meta">
+                        <span>${p.categoria || 'Gral'}</span>
+                        <span class="stock-badge ${stockClass}">${agotado ? 'AGOTADO' : stock}</span>
+                    </div>
+                    <div class="product-name">${p.nombre}</div>
+                    <div class="product-price">$${p.precio}</div>
+                `;
+                btn.onclick = () => abrirModalProducto(p);
+                el.appendChild(btn);
+            });
+        }
+
+        function renderCocina(snap) {
+            const el = document.getElementById("cocinaList");
+            el.innerHTML = "";
+            let docs = [];
+            snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+            docs.sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+
+            if(docs.length === 0) el.innerHTML = "<p style='grid-column:1/-1; text-align:center; color:#999; padding:40px;'>Todo limpio, Chef 👨‍🍳</p>";
+
+            docs.forEach(c => {
+                if(c.estado === 'enviado' || c.estado === 'entregado') return;
+                const card = document.createElement("div");
+                card.className = `card ticket-cocina ${c.estado}`;
+                let icono = c.tipo === 'mesa' ? '🍽️' : (c.tipo === 'llevar' ? '🛍️' : '🛵');
+                let titulo = c.tipo === 'mesa' ? 'Mesa '+c.mesaId : c.clienteNombre;
+                let tiempo = getTiempo(c.timestamp);
+                let btn = "";
+                if(c.estado === 'pendiente') btn = `<button class="btn btn-primary btn-sm" onclick="cambiarEstado('${c.id}', 'listo')">🔥 A Fuego</button>`;
+                else if(c.estado === 'listo') btn = `<button class="btn btn-success btn-sm" onclick="cambiarEstado('${c.id}', 'despacho')">✅ Terminar</button>`;
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0;">${icono} ${titulo}</h3>
+                        <span class="timer-badge">${tiempo}</span>
+                    </div>
+                    ${c.clienteDireccion ? `<small style="color:#666;">📍 ${c.clienteDireccion}</small>` : ''}
+                    <hr style="margin:8px 0; border:0; border-top:1px dashed #ccc;">
+                    <ul style="padding-left:20px; margin:10px 0;">
+                        ${c.items.map(i => `<li><b>${i.cantidad || 1}</b> ${i.nombre} ${i.notas && i.notas.length ? `<br><small style="background:#fff3cd;">⚠️ ${i.notas.join(',')}</small>` : ''}</li>`).join('')}
+                    </ul>
+                    ${btn}
+                `;
+                el.appendChild(card);
+            });
+        }
+
+        function renderCaja(snap) {
+            const cob = document.getElementById("listaPorCobrar");
+            const sal = document.getElementById("listaSalidas");
+            cob.innerHTML = ""; sal.innerHTML = "";
+
+            snap.forEach(doc => {
+                const c = doc.data();
+                const total = c.items.reduce((sum, i) => sum + i.precio, 0);
+                
+                const div = document.createElement("div");
+                div.style.borderBottom = "1px solid #ddd";
+                div.style.padding = "10px 0";
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <b>${c.tipo === 'mesa' ? 'Mesa '+c.mesaId : c.clienteNombre}</b>
+                        <b style="color:var(--primary)">$${total}</b>
+                    </div>
+                    <small style="color:#666;">${c.estado.toUpperCase()} • ${c.items.length} items</small>
+                    <div style="display:flex; gap:5px; margin-top:8px;">
+                        <button class="btn btn-dark btn-sm" style="width:auto;" onclick="imprimirTicket('${doc.id}')">🖨️</button>
+                        ${c.estado !== 'cerrado' ? `<button class="btn btn-success btn-sm" style="flex:1;" onclick="cambiarEstado('${doc.id}', 'cerrado')">💰 Cobrar</button>` : ''}
+                    </div>
+                `;
+                cob.appendChild(div);
+
+                if ((c.tipo === 'domicilio' || c.tipo === 'llevar') && c.estado !== 'pendiente') {
+                    const dSal = document.createElement("div");
+                    dSal.style.borderBottom = "1px solid #ddd";
+                    dSal.style.padding = "10px 0";
+                    let btnS = "";
+                    if(c.estado === 'despacho' || c.estado === 'listo') btnS = `<button class="btn btn-warning btn-sm" style="width:100%;" onclick="cambiarEstado('${doc.id}', 'enviado')">🛵 Enviar</button>`;
+                    else if(c.estado === 'enviado') btnS = `<button class="btn btn-success btn-sm" style="width:100%;" onclick="cambiarEstado('${doc.id}', 'entregado')">✅ Entregado</button>`;
+                    else btnS = `<span style="color:var(--success); font-weight:bold; font-size:0.8rem;">Completado</span>`;
+
+                    dSal.innerHTML = `<b>${c.clienteNombre}</b><br><small>${c.clienteDireccion || 'Para llevar'}</small><div style="margin-top:5px;">${btnS}</div>`;
+                    sal.appendChild(dSal);
+                }
+            });
+        }
+
+        // --- CRM LOGIC (v9) ---
+        async function buscarCliente() {
+            const tel = document.getElementById("crmTelefono").value;
+            if(!tel || tel.length < 10) return alert("Ingresa 10 dígitos");
+            const q = await db.collection("clientes").where("telefono", "==", tel).get();
+            const campos = document.getElementById("crmCampos");
+            campos.style.opacity = "1"; campos.style.pointerEvents = "auto";
+
+            if(!q.empty) {
+                const cl = q.docs[0].data();
+                document.getElementById("envioNombre").value = cl.nombre;
+                document.getElementById("envioDireccion").value = cl.direccion;
+            } else {
+                document.getElementById("envioNombre").focus();
+            }
+        }
+
+        async function guardarCliente(nom, dir, tel) {
+            const q = await db.collection("clientes").where("telefono", "==", tel).get();
+            if(q.empty) await db.collection("clientes").add({ nombre: nom, direccion: dir, telefono: tel, ultimaCompra: new Date() });
+            else await q.docs[0].ref.update({ nombre: nom, direccion: dir, ultimaCompra: new Date() });
+        }
+
+        // --- MERMAS & ADMIN ---
+        function abrirModalMerma() {
+            const sel = document.getElementById("mermaProducto");
+            sel.innerHTML = menuCache.map(p => `<option value="${p.id}">${p.nombre} (${p.stock})</option>`).join('');
+            document.getElementById("modalMerma").style.display = 'flex';
+        }
+
+        async function confirmarMerma() {
+            const id = document.getElementById("mermaProducto").value;
+            const cant = parseInt(document.getElementById("mermaCantidad").value);
+            const razon = document.getElementById("mermaRazon").value;
+            const prod = menuCache.find(p => p.id === id);
+            
+            const batch = db.batch();
+            batch.update(db.collection("menu").doc(id), { stock: firebase.firestore.FieldValue.increment(-cant) });
+            batch.set(db.collection("mermas").doc(), { producto: prod.nombre, cantidad: cant, costoEstimado: prod.precio * cant, razon: razon, fecha: firebase.firestore.FieldValue.serverTimestamp() });
+            
+            await batch.commit();
+            alert("Mermas registradas");
+            document.getElementById("modalMerma").style.display = 'none';
+        }
+
+        // --- PEDIDOS ---
+        function abrirModalProducto(prod) {
+            itemSeleccionado = { ...prod, notas: [] }; 
+            document.getElementById('modProdName').innerText = prod.nombre;
+            document.getElementById('modProdStock').innerText = prod.stock !== undefined ? prod.stock : '∞';
+            document.getElementById('modNota').value = '';
+            document.querySelectorAll('.btn-outline.selected').forEach(b => b.classList.remove('selected'));
+            document.getElementById('modalProducto').style.display = 'flex';
+        }
+
+        function toggleOption(btn, txt) {
+            btn.classList.toggle('selected');
+            if(btn.classList.contains('selected')) itemSeleccionado.notas.push(txt);
+            else itemSeleccionado.notas = itemSeleccionado.notas.filter(n => n !== txt);
+        }
+
+        function cerrarModalProducto() { document.getElementById('modalProducto').style.display = 'none'; }
+
+        function confirmarAgregarProducto() {
+            const extra = document.getElementById('modNota').value;
+            if(extra) itemSeleccionado.notas.push(extra);
+            carrito.push(itemSeleccionado);
+            renderCarrito();
+            cerrarModalProducto();
+        }
+
+        function confirmarManual() {
+            const n = document.getElementById('manNombre').value;
+            const p = parseFloat(document.getElementById('manPrecio').value);
+            if(!n || isNaN(p)) return;
+            carrito.push({ nombre: n, precio: p, categoria: 'Manual', notas: ['Manual'], isManual: true, id: 'man_' + Date.now() });
+            renderCarrito();
+            document.getElementById('modalManual').style.display = 'none';
+        }
+
+        function renderCarrito() {
+            const el = document.getElementById("cartItems");
+            if(carrito.length === 0) {
+                el.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Carrito vacío</p>';
+                document.getElementById("cartTotal").innerText = "$0.00";
+                return;
+            }
+            el.innerHTML = carrito.map((i, idx) => `
+                <div class="cart-item">
+                    <div style="display:flex; justify-content:space-between; font-weight:600;">
+                        <span>${i.nombre}</span>
+                        <span>$${i.precio} <span style="color:#c62828; cursor:pointer; margin-left:8px;" onclick="carrito.splice(${idx},1);renderCarrito()">✕</span></span>
+                    </div>
+                    ${i.notas.length > 0 ? `<div class="cart-item-mods">+ ${i.notas.join(', ')}</div>` : ''}
+                </div>
+            `).join('');
+            const total = carrito.reduce((sum, i) => sum + parseInt(i.precio), 0);
+            document.getElementById("cartTotal").innerText = `$${total.toFixed(2)}`;
+        }
+
+        async function enviarPedido() {
+            if(carrito.length === 0) return alert("Vacío");
+            try {
+                // CRM Check
+                const tel = document.getElementById("crmTelefono").value;
+                const nom = document.getElementById("envioNombre").value;
+                const dir = document.getElementById("envioDireccion").value;
+                if(currentOrden.tipo !== 'mesa' && tel) await guardarCliente(nom, dir, tel);
+
+                const batch = db.batch();
+                let conteos = {};
+                carrito.forEach(i => { if(i.id && !i.isManual) conteos[i.id] = (conteos[i.id] || 0) + 1; });
+                for (const [id, qty] of Object.entries(conteos)) {
+                    batch.update(db.collection('menu').doc(id), { stock: firebase.firestore.FieldValue.increment(-qty) });
+                }
+
+                batch.set(db.collection("comandas").doc(), {
+                    tipo: currentOrden.tipo,
+                    mesaId: currentOrden.tipo === 'mesa' ? currentOrden.id : null,
+                    clienteNombre: currentOrden.nombre,
+                    clienteDireccion: currentOrden.direccion,
+                    clienteTelefono: tel || null,
+                    items: carrito,
+                    estado: "pendiente",
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                if(currentOrden.tipo === 'mesa') {
+                    const mq = await db.collection("mesas").where("id", "==", currentOrden.id).get();
+                    if(!mq.empty) batch.update(mq.docs[0].ref, { estado: "ocupada" });
+                }
+
+                await batch.commit();
+                alert("✅ Enviado");
+                carrito = []; renderCarrito();
+                if(currentOrden.tipo === 'mesa') verTab('mesas'); else verTab('caja');
+            } catch(e) { alert(e.message); }
+        }
+
+        // --- UTILS ---
+        function iniciarOrdenMesa(id) {
+            currentOrden = { tipo: 'mesa', id: id, nombre: `Mesa ${id}`, direccion: '', telefono: '' };
+            prepararVistaComanda();
+        }
+
+        function iniciarOrdenExterna(tipo) {
+            currentOrden = { tipo: tipo, id: null, nombre: '', direccion: '', telefono: '' };
+            // Reset CRM modal
+            document.getElementById("crmTelefono").value = "";
+            document.getElementById("envioNombre").value = "";
+            document.getElementById("envioDireccion").value = "";
+            document.getElementById("crmCampos").style.opacity = "0.5";
+            document.getElementById('modalEnvio').style.display = 'flex';
+        }
+
+        function confirmarDatosEnvio() {
+            currentOrden.nombre = document.getElementById('envioNombre').value;
+            currentOrden.direccion = document.getElementById('envioDireccion').value;
+            currentOrden.telefono = document.getElementById('crmTelefono').value;
+            if(!currentOrden.nombre) return alert("Falta nombre");
+            document.getElementById('modalEnvio').style.display = 'none';
+            prepararVistaComanda();
+        }
+
+        function prepararVistaComanda() {
+            carrito = []; renderCarrito();
+            let ico = currentOrden.tipo === 'mesa' ? '🍽️' : (currentOrden.tipo === 'llevar' ? '🛍️' : '🛵');
+            document.getElementById('pedidoTitulo').innerText = `${ico} ${currentOrden.nombre}`;
+            document.getElementById('pedidoDetalle').innerText = currentOrden.direccion;
+            verTab('comanda');
+        }
+
+        function solicitarCambioRol() {
+            const nr = document.getElementById("rolSelect").value;
+            if(['caja','admin'].includes(nr)) {
+                pendingRole = nr;
+                document.getElementById("rolSelect").value = 'mesero'; 
+                document.getElementById("modalPin").style.display = 'flex';
+                document.getElementById("pinInput").value = '';
+                document.getElementById("pinInput").focus();
+            } else if (nr === 'cliente') {
+                activarModoCliente();
+            } else {
+                verTab(nr === 'cocina' ? 'cocina' : 'mesas');
+            }
+        }
+
+        function verificarPin() {
+            if(document.getElementById("pinInput").value === '1234') { 
+                verTab(pendingRole === 'admin' ? 'corte' : 'caja');
+                document.getElementById("rolSelect").value = pendingRole;
+                cerrarModalPin();
+            } else alert("PIN Incorrecto");
+        }
+
+        function cerrarModalPin() { document.getElementById("modalPin").style.display = 'none'; }
+
+        function verTab(id) {
+            document.querySelectorAll('[id^="view-"]').forEach(e => e.classList.add('hidden'));
+            document.getElementById(`view-${id}`).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const map = {'mesas':0, 'comanda':1, 'cocina':2, 'caja':3, 'corte':4};
+            if(map[id] !== undefined) document.querySelectorAll('.tab')[map[id]].classList.add('active');
+        }
+
+        function getTiempo(ts) {
+            if(!ts) return 'Now';
+            const diff = Math.floor((Date.now() - ts.toDate()) / 1000 / 60);
+            return diff + ' min';
+        }
+
+        function getColorCat(cat) {
+            if(cat === 'Tacos') return '#d32f2f';
+            if(cat === 'Bebidas') return '#1976d2';
+            return '#ff9800';
+        }
+
+        function filtrarMenu() {
+            const t = document.getElementById("menuSearch").value.toLowerCase();
+            renderMenuGrid(); 
+        }
+
+        // --- CORTE Z ---
+        async function generarCorte() {
+            const hoy = new Date(); hoy.setHours(0,0,0,0);
+            const vs = await db.collection("comandas").where("estado", "==", "cerrado").get();
+            let total = 0, count = 0, cats = {};
+
+            vs.forEach(d => {
+                const da = d.data();
+                if(da.timestamp && da.timestamp.toDate() >= hoy) {
+                    count++;
+                    da.items.forEach(i => {
+                        total += i.precio;
+                        const c = i.categoria || 'Otros';
+                        cats[c] = (cats[c] || 0) + i.precio;
+                    });
+                }
+            });
+
+            const ms = await db.collection("mermas").get();
+            let mermas = 0;
+            ms.forEach(d => {
+                const da = d.data();
+                if(da.fecha && da.fecha.toDate() >= hoy) mermas += (da.costoEstimado || 0);
+            });
+
+            document.getElementById("corteTotal").innerText = `$${total.toFixed(2)}`;
+            document.getElementById("corteCount").innerText = count;
+            document.getElementById("corteMermas").innerText = `$${mermas.toFixed(2)}`;
+            document.getElementById("tablaDesglose").innerHTML = Object.keys(cats).map(c => `<tr><td style="padding:10px;">${c}</td><td style="text-align:right;">$${cats[c].toFixed(2)}</td></tr>`).join('');
+        }
+
+        // --- ADMIN ---
+        async function actualizarMenuCompleto() {
+            if(!confirm("⚠️ ¿Cargar menú completo?")) return;
+            const batch = db.batch();
+            const snap = await db.collection("menu").get();
+            snap.forEach(d => batch.delete(d.ref));
+
+            const nuevoMenu = [
+                { nombre: "Taco Al Carbón", precio: 40, categoria: "Tacos", stock: 100 },
+                { nombre: "Taco Bistec", precio: 50, categoria: "Tacos", stock: 100 },
+                { nombre: "Taco Cecina", precio: 50, categoria: "Tacos", stock: 100 },
+                { nombre: "Taco Longaniza", precio: 40, categoria: "Tacos", stock: 100 },
+                { nombre: "Taco Arrachera", precio: 60, categoria: "Tacos", stock: 100 },
+                { nombre: "Gringa Pastor", precio: 30, categoria: "Gringas", stock: 50 },
+                { nombre: "Refresco", precio: 25, categoria: "Bebidas", stock: 200 },
+                { nombre: "Cerveza", precio: 40, categoria: "Bebidas", stock: 200 }
+            ];
+            nuevoMenu.forEach(i => batch.set(db.collection("menu").doc(), i));
+            await batch.commit();
+            alert("✅ Menú Actualizado");
+        }
+
+        async function imprimirTicket(docId) {
+            const doc = await db.collection("comandas").doc(docId).get();
+            const d = doc.data();
+            const total = d.items.reduce((a, i) => a + i.precio, 0);
+            
+            document.getElementById('ticket-print').innerHTML = `
+                <div class="ticket-header">
+                    <h3>LAS BRASAS</h3><p>Folio: ${doc.id.slice(-4).toUpperCase()}</p><div class="ticket-line"></div>
+                    <p>${d.tipo.toUpperCase()}: ${d.clienteNombre || d.mesaId}</p>
+                </div>
+                <div>${d.items.map(i => `<div class="ticket-item"><span>${i.nombre}</span><span>$${i.precio}</span></div>`).join('')}</div>
+                <div class="ticket-line"></div>
+                <div class="ticket-total">TOTAL: $${total}</div>
+            `;
+            window.print();
+        }
+
+        // --- CLIENTE BLINDADO ---
+        function activarModoCliente() {
+            modoCliente = true;
+            document.getElementById('rolSelect').style.display = 'none';
+            document.getElementById('btnUpdateMenu').style.display = 'none';
+            document.getElementById('navTabs').style.display = 'none';
+            document.getElementById('mesasControls').style.display = 'none';
+            document.querySelector('.badge-cloud').innerHTML = "👋 Bienvenido";
+            verTab('mesas');
+        }
+
+        function showQR(id) {
+            document.getElementById("qrModal").style.display = 'flex';
+            document.getElementById("qrcode").innerHTML = "";
+            const url = window.location.href.split('?')[0] + "?mesa=" + id + "&mode=cliente";
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
+        }
+
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            if(params.get('mesa') && params.get('mode') === 'cliente') {
+                activarModoCliente();
+                iniciarOrdenMesa(parseInt(params.get('mesa')));
+            }
+        }
+    </script>
+</body>
+</html>
